@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#050507">
-<title>Quantum Scalper · BTC 5M·15M·1H v7.7</title>
+<title>Quantum Scalper · BTC 5M·15M·1H v7.8</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 :root{
@@ -394,6 +394,14 @@ html.is-scrolling #qsBgApp .qs-fl,html.is-scrolling .glow-card::after,html.is-sc
 .mc-imp-t{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
 .mc-imp p{font-size:12.5px;line-height:1.55;margin:5px 0;color:#d4d8e0}
 @media(max-width:720px){.mc-grid{grid-template-columns:1fr}}
+/* ===== v7.8: capas del gráfico ===== */
+.layer-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.layer-chips::before{content:"Capas:";font-size:11px;color:var(--muted);margin-right:2px}
+.layer-chips button{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:5px 11px;border-radius:99px;border:1px solid var(--border);color:var(--muted);background:transparent;transition:all .2s var(--ease)}
+.layer-chips button i{width:8px;height:8px;border-radius:50%;border:1.5px solid currentColor;opacity:.6}
+.layer-chips button.on{color:var(--text);border-color:var(--lc);box-shadow:0 0 10px color-mix(in srgb,var(--lc) 30%,transparent)}
+.layer-chips button.on i{background:var(--lc);border-color:var(--lc);opacity:1}
+.layer-chips button:hover{border-color:var(--lc)}
 </style>
 </head>
 <body>
@@ -530,15 +538,7 @@ html.is-scrolling #qsBgApp .qs-fl,html.is-scrolling .glow-card::after,html.is-sc
           <button data-tf="1d">1d</button>
         </div>
         <div class="chart-wrap"><div id="tvChart"></div><div id="chartCd" class="chart-cd"><span id="chartCdTf">5M</span><b id="chartCdT">--:--</b><small>cierra vela</small></div></div>
-        <div class="chart-legend">
-          <span><span class="dotline" style="background:var(--yellow)"></span> EMA 9</span>
-          <span><span class="dotline" style="background:var(--blue)"></span> EMA 21</span>
-          <span><span class="dotline" style="background:var(--purple)"></span> RSI 14</span>
-          <span><span class="dotline" style="background:var(--orange)"></span> VWAP</span>
-          <span><span class="dotline" style="background:var(--green); border-bottom:1px dashed"></span> Soporte</span>
-          <span><span class="dotline" style="background:var(--red); border-bottom:1px dashed"></span> Resistencia</span>
-          <span><span class="dotline" style="background:#26a69a"></span> MACD hist.</span>
-        </div>
+        <div class="layer-chips" id="layerChips"></div>
       </div>
       <div class="card span6 glow-card" id="bookCard">
         <div class="row"><h2>Libro de órdenes · en vivo</h2><span class="badge live"><span class="pulse-dot"></span> <span id="bookLive">EN VIVO</span></span></div>
@@ -773,7 +773,7 @@ html.is-scrolling #qsBgApp .qs-fl,html.is-scrolling .glow-card::after,html.is-sc
   </section>
 
   <div class="foot">
-    Quantum Scalper · BTC · v7.7 · Herramienta educativa de scalping.<br>
+    Quantum Scalper · BTC · v7.8 · Herramienta educativa de scalping.<br>
     No es asesoramiento financiero. Las señales son orientativas.
   </div>
 </div>
@@ -2203,7 +2203,7 @@ function renderKeyLevels(){
 const KL_CHART={};
 function updateKeyLines(){
   if(typeof candleSeries==="undefined"||!candleSeries)return;
-  const want={};keyLevels().forEach(l=>{if(["pdh","pdl","wa","wb"].includes(l.k))want[l.k]=l});
+  const want={};keyLevels().forEach(l=>{if((l.k==="pdh"||l.k==="pdl")?LAYERS.prev:(l.k==="wa"||l.k==="wb")?LAYERS.walls:false)want[l.k]=l});
   Object.keys(KL_CHART).forEach(k=>{if(!want[k]||Math.abs(KL_CHART[k].price-want[k].price)>0.01){try{candleSeries.removePriceLine(KL_CHART[k].line)}catch(e){}delete KL_CHART[k]}});
   Object.keys(want).forEach(k=>{if(KL_CHART[k])return;const l=want[k];
     try{const line=candleSeries.createPriceLine({price:l.price,color:l.col,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,title:({pdh:"MÁX AYER",pdl:"MÍN AYER",wa:"MURO ASK",wb:"MURO BID"})[k]});KL_CHART[k]={price:l.price,line}}catch(e){}});
@@ -2480,6 +2480,26 @@ function cleanupExpiredSignals(){
 
 let tvChart,candleSeries,ema9Series,ema21Series,rsiSeries,vwapSeries,macdHistSeries;
 let supportLine=null,resistanceLine=null;
+// v7.8 · capas del gráfico (por defecto solo lo esencial: velas, flechas, EMA 9/21 y contador)
+const LAYER_DEF=[["ema","EMA 9/21","#facc15"],["vwap","VWAP","#f97316"],["rsi","RSI","#a855f7"],["macd","MACD","#26a69a"],["sr","Soporte / Resist.","#0ecb81"],["prev","Máx/Mín de ayer","#e0b400"],["walls","Muros","#c084fc"]];
+const LAYERS=(function(){const d={ema:true,vwap:false,rsi:false,macd:false,sr:false,prev:false,walls:false};
+  try{const v=JSON.parse(localStorage.getItem("chart_layers_v78")||"null");if(v)Object.keys(d).forEach(k=>{if(typeof v[k]==="boolean")d[k]=v[k]})}catch(e){}return d})();
+function applyLayers(){
+  const vis=(sr,on)=>{try{if(sr)sr.applyOptions({visible:!!on})}catch(e){}};
+  vis(ema9Series,LAYERS.ema);vis(ema21Series,LAYERS.ema);vis(vwapSeries,LAYERS.vwap);vis(rsiSeries,LAYERS.rsi);vis(macdHistSeries,LAYERS.macd);
+  document.querySelectorAll("#layerChips button").forEach(b=>b.classList.toggle("on",!!LAYERS[b.dataset.layer]));
+}
+function initLayerChips(){
+  const box=$("layerChips");if(!box)return;
+  box.innerHTML=LAYER_DEF.map(([k,l,c])=>`<button type="button" data-layer="${k}" style="--lc:${c}"><i></i>${l}</button>`).join("");
+  box.addEventListener("click",e=>{
+    const b=e.target.closest("button[data-layer]");if(!b)return;
+    const k=b.dataset.layer;LAYERS[k]=!LAYERS[k];
+    try{localStorage.setItem("chart_layers_v78",JSON.stringify(LAYERS))}catch(e){}
+    applyLayers();try{updateChart()}catch(e){}try{updateKeyLines()}catch(e){}
+  });
+  applyLayers();
+}
 
 function initChart(){
   if(typeof LightweightCharts==="undefined"){console.warn("LC no disponible");return}
@@ -2500,6 +2520,7 @@ function initChart(){
   macdHistSeries=tvChart.addHistogramSeries({color:"#26a69a",priceLineVisible:false,lastValueVisible:false,priceScaleId:"macd"});
   tvChart.priceScale("rsi").applyOptions({scaleMargins:{top:.78,bottom:0}});
   tvChart.priceScale("macd").applyOptions({scaleMargins:{top:.85,bottom:0}});
+  initLayerChips();
 }
 
 // v7.5 · actualización incremental: setData (costoso) solo cuando cambia la estructura;
@@ -2543,7 +2564,11 @@ function updateChart(){
     }catch(e){CH.full=0}   // si algo no cuadra, la próxima pasada redibuja completo
   }
   const chartCtx=tf==="5m"?state.ctx:(candles.length>=20?{min20:Math.min(...candles.slice(-20).map(c=>c.l)),max20:Math.max(...candles.slice(-20).map(c=>c.h))}:null);
-  if(chartCtx&&(!supportLine||!resistanceLine||CH.sup!==chartCtx.min20||CH.res!==chartCtx.max20)){
+  if(!LAYERS.sr){
+    if(supportLine){try{candleSeries.removePriceLine(supportLine)}catch(e){}supportLine=null}
+    if(resistanceLine){try{candleSeries.removePriceLine(resistanceLine)}catch(e){}resistanceLine=null}
+    CH.sup=CH.res=null;
+  }else if(chartCtx&&(!supportLine||!resistanceLine||CH.sup!==chartCtx.min20||CH.res!==chartCtx.max20)){
     if(supportLine)candleSeries.removePriceLine(supportLine);
     if(resistanceLine)candleSeries.removePriceLine(resistanceLine);
     supportLine=candleSeries.createPriceLine({price:chartCtx.min20,color:"#0ecb81",lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:"SOPORTE"});
@@ -2553,8 +2578,8 @@ function updateChart(){
   let markers=state.signals.map(s=>{
     let time=Math.floor(s.emitTime/1000);if(tf!=="5m"){const sec=TF_SEC[tf]||300;time=time-time%sec}
     const isLong=s.side==="LONG";
-    let text=isLong?"▲ LONG":"▼ SHORT";
-    if(s.sweet)text+=" 🎯";
+    let text=isLong?"▲":"▼";
+    if(s.sweet)text+="🎯";
     if(s.status==="win")text+=" ✓";else if(s.status==="loss")text+=" ✗";
     return{time,position:isLong?"belowBar":"aboveBar",color:s.sweet?"#00f2fe":(isLong?"#0ecb81":"#f6465d"),shape:isLong?"arrowUp":"arrowDown",text};
   });
