@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#050507">
-<title>Quantum Scalper · BTC 5M·15M·1H v7.8</title>
+<title>Quantum Scalper · BTC 5M·15M·1H v7.9</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 :root{
@@ -402,6 +402,46 @@ html.is-scrolling #qsBgApp .qs-fl,html.is-scrolling .glow-card::after,html.is-sc
 .layer-chips button.on{color:var(--text);border-color:var(--lc);box-shadow:0 0 10px color-mix(in srgb,var(--lc) 30%,transparent)}
 .layer-chips button.on i{background:var(--lc);border-color:var(--lc);opacity:1}
 .layer-chips button:hover{border-color:var(--lc)}
+/* ===== v7.9: aviso emergente + contexto de velas + pulido (solo transform/opacity: sin lag) ===== */
+html{color-scheme:dark}
+::selection{background:rgba(0,242,254,.28)}
+.price,.bk-row,.tp-row,.kl-row,.mc-r,.cx-row{font-variant-numeric:tabular-nums}
+button:active{transform:scale(.97)}
+*{scrollbar-width:thin;scrollbar-color:#2a3042 transparent}
+.toast{display:none;position:fixed;top:max(14px,env(safe-area-inset-top));left:50%;z-index:100;width:min(92vw,450px);
+  grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:13px 14px 16px;
+  background:#0e1118;border:1.5px solid var(--tc,var(--accent));border-radius:18px;overflow:hidden;cursor:pointer;
+  box-shadow:0 14px 34px rgba(0,0,0,.6);transform:translate3d(-50%,0,0);will-change:transform,opacity;backdrop-filter:none}
+.toast.long-signal{--tc:var(--green)}.toast.short-signal{--tc:var(--red)}.toast.sweet-signal{--tc:var(--accent)}.toast.low-signal{--tc:var(--yellow)}
+.toast::before{display:none}
+.toast.show{display:grid;animation:ttIn .38s cubic-bezier(.2,1.2,.3,1) both}
+.toast.out{animation:ttOut .2s ease-in both}
+@keyframes ttIn{from{opacity:0;transform:translate3d(-50%,-22px,0) scale(.96)}to{opacity:1;transform:translate3d(-50%,0,0) scale(1)}}
+@keyframes ttOut{to{opacity:0;transform:translate3d(-50%,-14px,0) scale(.97)}}
+.tt-ico{width:46px;height:46px;border-radius:50%;border:2px solid var(--tc);color:var(--tc);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;flex:none}
+.tt-main{min-width:0}
+.tt-top{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.toast .tt-top strong{display:inline;font-size:17px;font-weight:900;letter-spacing:-.3px;margin:0;color:var(--tc)}
+.tt-tf{font-size:10px;font-weight:800;letter-spacing:.6px;padding:2px 8px;border:1px solid var(--border);border-radius:99px;color:var(--muted)}
+.tt-chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
+.tt-chip{font-size:10px;font-weight:800;letter-spacing:.3px;padding:1px 8px;border:1px solid;border-radius:99px}
+.toast .toast-desc{font-size:12px;color:var(--muted);line-height:1.4}
+.tt-x{width:28px;height:28px;border-radius:50%;border:1px solid var(--border);color:var(--muted);font-size:17px;line-height:1;align-self:start;background:transparent}
+.tt-x:hover{color:var(--text);border-color:var(--tc)}
+.tt-bar{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--tc);transform-origin:left;transform:scaleX(1);animation:ttBar 9s linear forwards}
+@keyframes ttBar{to{transform:scaleX(0)}}
+.seg{display:inline-flex;gap:4px}
+.seg button{font-size:11px;font-weight:700;padding:4px 11px;border-radius:99px;border:1px solid var(--border);color:var(--muted);background:transparent}
+.seg button.on{border-color:var(--accent);color:var(--accent)}
+.cx-row{display:grid;grid-template-columns:96px 150px 1fr;gap:12px;align-items:center;padding:9px 12px;margin:7px 0;border:1px solid var(--border);border-left-width:3px;border-radius:12px}
+.cx-h{display:flex;flex-direction:column;gap:2px;font-size:12px}.cx-h b{font-size:15px}
+.cx-bars{display:flex;align-items:flex-end;gap:3px;height:34px}
+.cx{display:block;flex:1;min-width:3px;border-radius:2px;border:1.5px solid;background:transparent}
+.cx.u{border-color:var(--green)}.cx.d{border-color:var(--red)}
+.cx-t{font-size:12px;line-height:1.45}.cx-n{font-size:11px;margin-top:2px}
+.cx-sum{margin-top:10px;padding:9px 12px;border:1px solid var(--accent);border-radius:12px;font-size:13px}
+@media(max-width:720px){.cx-row{grid-template-columns:1fr;gap:6px}.cx-bars{height:30px}}
+@media(prefers-reduced-motion:reduce){.tt-bar{animation:none}}
 </style>
 </head>
 <body>
@@ -419,9 +459,15 @@ html.is-scrolling #qsBgApp .qs-fl,html.is-scrolling .glow-card::after,html.is-sc
     </div>
   </div>
 
-  <div id="toast" class="toast">
-    <strong id="toastTitle">Señal</strong>
-    <div id="toastText" class="toast-desc"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite">
+    <div class="tt-ico" id="toastIcon">▲</div>
+    <div class="tt-main">
+      <div class="tt-top"><strong id="toastTitle">Señal</strong><span class="tt-tf" id="toastTf"></span></div>
+      <div class="tt-chips" id="toastChips"></div>
+      <div id="toastText" class="toast-desc"></div>
+    </div>
+    <button type="button" class="tt-x" id="toastClose" aria-label="Cerrar aviso">×</button>
+    <i class="tt-bar" id="toastBar"></i>
   </div>
 
   <nav class="nav" id="nav">
@@ -526,6 +572,11 @@ html.is-scrolling #qsBgApp .qs-fl,html.is-scrolling .glow-card::after,html.is-sc
       <div class="card span12">
         <div class="row"><h2>Macro 4H · 8H</h2><span class="badge accent">CONTEXTO</span></div>
         <div id="macroBox"><div class="muted small">Cargando velas de 4H y 8H…</div></div>
+      </div>
+      <div class="card span12">
+        <div class="row"><h2>Contexto de las últimas velas</h2><div class="seg" id="ctxN"><button type="button" data-n="10">10 velas</button><button type="button" data-n="20">20 velas</button></div></div>
+        <div id="ctxBox"><div class="muted small">Cargando velas…</div></div>
+        <p class="muted small" style="margin-top:10px">Resume quién ha dominado en cada marco (5M, 15M, 1H y 4H) y si hubo velas que subieron o bajaron fuerte pero cerraron al revés. Es contexto: no cambia las señales.</p>
       </div>
       <div class="card span12">
         <div class="row"><h2 id="chartTitle">Gráfico 5M · BTC/USDT</h2><span class="badge accent">LONG / SHORT</span></div>
@@ -773,7 +824,7 @@ html.is-scrolling #qsBgApp .qs-fl,html.is-scrolling .glow-card::after,html.is-sc
   </section>
 
   <div class="foot">
-    Quantum Scalper · BTC · v7.8 · Herramienta educativa de scalping.<br>
+    Quantum Scalper · BTC · v7.9 · Herramienta educativa de scalping.<br>
     No es asesoramiento financiero. Las señales son orientativas.
   </div>
 </div>
@@ -2343,16 +2394,7 @@ function maybeAlert(d){
   state.activeRegistered=false;
 
   const msg=`${d.side==="LONG"?"Posible LONG":"Posible SHORT"} · ${d.confidence} · ${d.score}/100${d.sweetBonus?" · 🎯 SWEET SPOT":""}${state.safeMode?" · 🛡️ MODO SEGURO":""}`;
-  const toast=$("toast");
-  toast.classList.remove("short","low","visual","long-signal","short-signal","low-signal","sweet-signal");
-  toast.classList.add("show");
-  if(d.sweetBonus)toast.classList.add("sweet-signal");
-  else if(d.side==="LONG")toast.classList.add("long-signal");
-  else toast.classList.add("short-signal");
-  if(d.confidence==="BAJA")toast.classList.add("low-signal");
-  $("toastTitle").textContent=d.sweetBonus?`🎯 SWEET SPOT · ${d.side}`:(d.side==="LONG"?"🟢 Posible LONG":"🔴 Posible SHORT");
-  $("toastText").textContent=msg+(d.isRegisterable?" · 📌 Registrada":" · 👁️ Solo visual");
-  setTimeout(()=>toast.classList.remove("show"),d.confidence==="BAJA"?5000:8500);
+  showSignalToast({side:d.side,tfName:"5M",conf:d.confidence,score:d.score,sweet:!!d.sweetBonus,registered:!!d.isRegisterable,safe:!!state.safeMode,ms:d.confidence==="BAJA"?5500:9000});
 
   if(d.confidence!=="BAJA"){
     try{
@@ -3047,12 +3089,7 @@ function alertTF(d,now){
   const C=TFS[d.tf];
   const msg=`⏱️ ${C.name} · ${d.side==="LONG"?"Posible LONG":"Posible SHORT"} · ${d.confidence} · ${d.score}/100`;
   try{
-    const toast=$("toast");
-    toast.classList.remove("short","low","visual","long-signal","short-signal","low-signal","sweet-signal");
-    toast.classList.add("show");toast.classList.add(d.side==="LONG"?"long-signal":"short-signal");
-    $("toastTitle").textContent=`⏱️ ${C.name} · ${d.side==="LONG"?"🟢 Posible LONG":"🔴 Posible SHORT"}`;
-    $("toastText").textContent=msg+" · 📌 Registrada";
-    setTimeout(()=>toast.classList.remove("show"),10000);
+    showSignalToast({side:d.side,tfName:C.name,conf:d.confidence,score:d.score,sweet:false,registered:true,safe:false,ms:10000});
   }catch(e){}
   try{
     if(!state.audio){const AC=window.AudioContext||window.webkitAudioContext;if(AC)state.audio=new AC()}
@@ -3517,6 +3554,7 @@ function renderInsights(){
   try{MAC.last=macroView(px)}catch(e){MAC.last=null;console.warn("macroView",e)}
   try{MAC.live=liveRead()}catch(e){MAC.live=null;console.warn("liveRead",e)}
   const pg=$("page-resumen");if(!pg||!pg.classList.contains("active"))return;
+  try{renderCtx()}catch(e){console.warn("ctx",e)}
   // --- macro ---
   const mv=MAC.last,box=$("macroBox");
   if(box){
@@ -3548,6 +3586,96 @@ function renderInsights(){
     }
   }
 }
+
+// ===== v7.9 · AVISO EMERGENTE rediseñado (solo transform/opacity: sin blur ni animar sombras, no da lag) =====
+let _toastT=0,_toastHide=0;
+function hideSignalToast(){
+  const t=$("toast");if(!t||!t.classList.contains("show"))return;
+  clearTimeout(_toastT);t.classList.add("out");
+  clearTimeout(_toastHide);_toastHide=setTimeout(()=>{t.classList.remove("show","out")},220);
+}
+function showSignalToast(o){
+  const t=$("toast");if(!t)return;
+  clearTimeout(_toastT);clearTimeout(_toastHide);
+  const L=o.side==="LONG";
+  t.classList.remove("show","out","long-signal","short-signal","low-signal","sweet-signal");
+  void t.offsetWidth; // reinicia la animación si ya había un aviso
+  t.classList.add(o.sweet?"sweet-signal":L?"long-signal":"short-signal");
+  if(o.conf==="BAJA")t.classList.add("low-signal");
+  $("toastIcon").textContent=o.sweet?"★":L?"▲":"▼";
+  $("toastTitle").textContent=o.sweet?"Sweet Spot · "+(L?"LONG":"SHORT"):(L?"Posible LONG":"Posible SHORT");
+  $("toastTf").textContent=o.tfName||"";
+  const cc=o.conf==="ALTA"?"var(--green)":o.conf==="MEDIA"?"var(--yellow)":"var(--red)";
+  const chip=(txt,col)=>`<span class="tt-chip" style="border-color:${col};color:${col}">${txt}</span>`;
+  $("toastChips").innerHTML=chip(o.conf,cc)+chip(o.score+"/100","var(--text)")+(o.registered?chip("Registrada","var(--accent)"):chip("Solo visual","var(--muted)"))+(o.safe?chip("Modo seguro","var(--green)"):"");
+  $("toastText").textContent=L?"Se espera que la vela cierre por encima de su apertura. Revisa la entrada antes de tomarla.":"Se espera que la vela cierre por debajo de su apertura. Revisa la entrada antes de tomarla.";
+  const bar=$("toastBar");bar.style.animation="none";void bar.offsetWidth;bar.style.animation="";bar.style.animationDuration=(o.ms||9000)+"ms";
+  t.classList.add("show");
+  _toastT=setTimeout(hideSignalToast,o.ms||9000);
+}
+(function(){const c=$("toastClose"),t=$("toast");if(c)c.addEventListener("click",e=>{e.stopPropagation();hideSignalToast()});if(t)t.addEventListener("click",hideSignalToast)})();
+
+// ===== v7.9 · CONTEXTO DE LAS ÚLTIMAS VELAS (5M · 15M · 1H · 4H) =====
+const CTX={n:(function(){try{const v=+localStorage.getItem("ctx_n_v79");return v===20?20:10}catch(e){return 10}})(),key:""};
+function ctxFor(candles,ms,N){
+  if(!candles||candles.length<N+3)return null;
+  const now=Date.now()+state.offset,last=candles[candles.length-1];
+  const closed=last.t+ms>now?candles.slice(0,-1):candles.slice();
+  const r=closed.slice(-N);if(r.length<N)return null;
+  let bull=0,bear=0;r.forEach(c=>{if(c.c>c.o)bull++;else if(c.c<c.o)bear++});
+  const avgR=closed.slice(-30).reduce((x,c)=>x+(c.h-c.l),0)/Math.min(30,closed.length);
+  let st=0,sc=null;for(let i=r.length-1;i>=0;i--){const col=r[i].c>r[i].o?"u":r[i].c<r[i].o?"d":"n";if(sc===null)sc=col;if(col===sc)st++;else break}
+  let spikeUp=0,spikeDn=0;
+  r.forEach(c=>{const b=Math.abs(c.c-c.o);
+    if(c.c<c.o&&(c.h-c.o)>=Math.max(.8*b,.4*avgR))spikeUp++;      // subió y cerró rojo
+    if(c.c>c.o&&(c.o-c.l)>=Math.max(.8*b,.4*avgR))spikeDn++;      // bajó y cerró verde
+  });
+  const net=r[r.length-1].c-r[0].o,netPct=net/r[0].o*100;
+  const domBull=bull/N,domBear=bear/N;
+  const lean=domBull>=.6?"LONG":domBear>=.6?"SHORT":"NEUTRAL";
+  return{r,bull,bear,N,st,sc,spikeUp,spikeDn,net,netPct,lean,domBull,domBear,t:closed[closed.length-1].t};
+}
+function ctxText(x,name){
+  let a;
+  if(x.lean==="NEUTRAL")a=`Equilibrado: ${x.bull} alcistas y ${x.bear} bajistas de ${x.N}.`;
+  else{const n=x.lean==="LONG"?x.bull:x.bear;a=`Domina ${x.lean==="LONG"?"el alza":"la baja"}: ${n} de ${x.N} velas (${Math.round(n/x.N*100)}%).`}
+  const extra=[];
+  if(x.st>=3&&x.sc!=="n")extra.push(`${x.st} ${x.sc==="u"?"verdes":"rojas"} seguidas.`);
+  if(x.spikeUp>=2)extra.push(`${x.spikeUp} velas subieron fuerte pero cerraron rojas: las compras no se sostienen.`);
+  if(x.spikeDn>=2)extra.push(`${x.spikeDn} velas bajaron fuerte pero cerraron verdes: las ventas no se sostienen.`);
+  return a+(extra.length?" "+extra.join(" "):"");
+}
+function renderCtx(){
+  const box=$("ctxBox");if(!box)return;
+  const pg=$("page-resumen");if(!pg||!pg.classList.contains("active"))return;
+  const defs=[["5M","5m",300000],["15M","15m",900000],["1H","1h",3600000],["4H","4h",14400000]];
+  const rows=[],key=[CTX.n];
+  defs.forEach(([nm,iv,ms])=>{const x=ctxFor(state.candles[iv],ms,CTX.n);if(x){rows.push([nm,x]);key.push(nm+x.t)}});
+  const k=key.join("|");if(k===CTX.key)return;CTX.key=k;
+  if(!rows.length){box.innerHTML='<div class="muted small">Cargando velas…</div>';return}
+  const colOf=l=>l==="LONG"?"var(--green)":l==="SHORT"?"var(--red)":"var(--yellow)";
+  let html=rows.map(([nm,x])=>{
+    const mx=Math.max(...x.r.map(c=>c.h-c.l))||1;
+    const bars=x.r.map(c=>{const up=c.c>=c.o,h=Math.max(6,Math.round(Math.abs(c.c-c.o)/mx*26)+6);return`<i class="cx ${up?"u":"d"}" style="height:${h}px"></i>`}).join("");
+    return`<div class="cx-row" style="border-left-color:${colOf(x.lean)}"><div class="cx-h"><b>${nm}</b><span style="color:${colOf(x.lean)}">${x.lean==="LONG"?"▲ alcista":x.lean==="SHORT"?"▼ bajista":"● equilibrado"}</span></div><div class="cx-bars">${bars}</div><div class="cx-t">${ctxText(x,nm)}<div class="cx-n muted">Avance neto: ${x.net>=0?"+":"−"}$${fmt(Math.abs(x.net),0)} (${x.net>=0?"+":"−"}${Math.abs(x.netPct).toFixed(2)}%)</div></div></div>`}).join("");
+  // lectura final
+  const L=Object.fromEntries(rows.map(([nm,x])=>[nm,x.lean]));
+  let sum="";
+  const vals=Object.values(L);
+  if(vals.length&&vals.every(v=>v==="SHORT"))sum="Todos los marcos empujan a la <b class=\"red\">baja</b>.";
+  else if(vals.length&&vals.every(v=>v==="LONG"))sum="Todos los marcos empujan al <b class=\"green\">alza</b>.";
+  else if(L["5M"]&&L["5M"]!=="NEUTRAL"&&(L["1H"]||L["4H"])){
+    const big=L["1H"]&&L["1H"]!=="NEUTRAL"?L["1H"]:L["4H"];
+    if(big&&big!=="NEUTRAL"&&big!==L["5M"])sum=`El 5M domina ${L["5M"]==="LONG"?"el alza":"la baja"} pero los marcos grandes van ${big==="LONG"?"al alza":"a la baja"}: va contra el movimiento grande, podría ser solo ${L["5M"]==="LONG"?"un rebote":"una pausa"}.`;
+  }
+  if(!sum)sum="Los marcos no coinciden del todo: mercado mixto, confirma bien antes de entrar.";
+  html+=`<div class="cx-sum">${sum}</div>`;
+  box.innerHTML=html;
+}
+(function(){const box=$("ctxN");if(!box)return;
+  const paint=()=>box.querySelectorAll("button").forEach(b=>b.classList.toggle("on",+b.dataset.n===CTX.n));paint();
+  box.addEventListener("click",e=>{const b=e.target.closest("button[data-n]");if(!b)return;CTX.n=+b.dataset.n;try{localStorage.setItem("ctx_n_v79",String(CTX.n))}catch(x){}paint();CTX.key="";renderCtx()});
+})();
 
 async function init(){
   loadSignals();loadNotices();renderNotices();renderStats();
