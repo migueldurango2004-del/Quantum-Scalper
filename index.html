@@ -2621,6 +2621,13 @@ function captureFactors(d){
   f["Estado del mercado"]=marketStatusLabel();
   f["Lado"]=d.side;
   try{f["Prob. cruce"]=cmdBucket(cmdProb())}catch(e){}
+  try{ // v7.22: racha de velas 5M cerradas (solo dato para validar después)
+    const cs=(state.candles["5m"]||[]).slice(0,-1),n=cs.length;
+    if(n>=3){const col=c=>c.c>c.o?"V":c.c<c.o?"R":"D";let k=1;const last=col(cs[n-1]);
+      while(k<n&&k<12&&col(cs[n-1-k])===last)k++;
+      f["Racha 5M"]=last==="D"?"Doji":k+(last==="R"?" roja"+(k>1?"s":""):" verde"+(k>1?"s":""));
+      f["Últimas 3 5M"]=[cs[n-3],cs[n-2],cs[n-1]].map(col).join("")}
+  }catch(e){}
   f["Confianza"]=d.confidence;
   f["Régimen"]=d.regime?(d.regime.id==="SWEET_SPOT"?"Sweet Spot":d.regime.name):"—";
   f["Sesión"]=sessionInfo().session.split(" (")[0];
