@@ -3062,8 +3062,8 @@ function connectWS(){
     try{
       state.lastMsgMs=Date.now();state.dataStale=false;
       const msg=JSON.parse(ev.data),stream=msg.stream||"",d=msg.data||msg;
-      if(stream.endsWith("@ticker")){state.price=+d.c;state.change=+d.P;state.high=+d.h;state.low=+d.l;state.volume=+d.v;scheduleRender()}
-      else if(stream.endsWith("@aggTrade")){addTrade(d)}
+      if(stream.endsWith("@ticker")){if(!(performance.now()-FP.t<2500))state.price=+d.c;state.change=+d.P;state.high=+d.h;state.low=+d.l;state.volume=+d.v;scheduleRender()}
+      else if(stream.endsWith("@aggTrade")){fastPrice(+d.p);addTrade(d)}
       else if(stream.includes("@depth")){state.bids=(d.b||[]).map(x=>[+x[0],+x[1]]);state.asks=(d.a||[]).map(x=>[+x[0],+x[1]]);renderBook();scheduleRender()}
       else if(d.k&&d.k.i)updateKline(d.k.i,d.k);
     }catch(e){}
@@ -4365,6 +4365,23 @@ function navIndicator(){
 }
 
 
+// ===== v7.23 PRECIO EN VIVO =====
+// El stream @ticker solo llega 1 vez por segundo; aggTrade llega con cada operación. El precio ahora sale de aggTrade
+// y se pinta de inmediato (solo texto, 1 vez por frame) sin esperar al render completo.
+const FP={t:0,raf:0,txt:""};
+function fastPrice(p){
+  if(!(p>0))return;
+  state.price=p;FP.t=performance.now();
+  if(FP.raf)return;
+  FP.raf=requestAnimationFrame(()=>{FP.raf=0;
+    try{const px=state.price,op=state.open5m,t=usd(px);
+      if(t!==FP.txt){FP.txt=t;
+        const a=$("price"),b=$("proPrice");if(a&&a.textContent!==t)a.textContent=t;if(b&&b.textContent!==t)b.textContent=t;
+        const hp=$("hdrPrice");if(hp&&Number.isFinite(op)){const up=px>=op,h=(up?"▲ ":"▼ ")+t;if(hp.textContent!==h)hp.textContent=h;
+          const c="hdr-price "+(Math.abs(px-op)<FLAT_USD?"":up?"up":"dn");if(hp.className!==c)hp.className=c}}
+    }catch(e){}
+  });
+}
 // ===== v7.21 CENTRO DE MANDO =====
 const CMD={pts:[],open:null,last:0,draw:0,lastP:null};
 function qsPhi(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2),p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return x>0?1-p:p}
