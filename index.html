@@ -1116,6 +1116,16 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
 const SECRET="4e0a21a0b97885257e5b2c2a58fbe6bc4c12c66a31f7c02d",PIN_HASH="aad6a237ba4da8f5ea117fed0e49e73241cf8102fcad03ec5a4bc736f2ef0bb4";
 const EPOCH=1735689600000,ALPHA="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",REDEEM_DAYS=7;
 const DURS={1:{ms:24*3600*1000,label:"24 horas"},2:{ms:30*24*3600*1000,label:"1 mes (30 días)"},3:{ms:7*24*3600*1000,label:"1 semana (7 días)"}};
+const PUB={"kty":"EC","crv":"P-256","x":"LBMbb_R1A2e5GF4Fxhe012mO6CP973zPvYOHDbj1Vpg","y":"XQBa0yHSHyxF-zX6Fm1z5YFTfGjGa4tH5xuetoKMhmg"};
+const PAY={id:"874968696",net:"Binance Pay · USDT"};
+// Aviso opcional por Telegram al recibir una solicitud (otro bot, independiente del bot de señales). Déjalo vacío para usar solo copiar/pegar.
+const NOTIFY={token:"",chat:"",tg:""};
+const PLANS={
+ p1:{n:"Prueba",usd:2,ms:864e5,dur:"1 día",pages:["resumen"],yes:["Vista General con el Centro de mando","Señal en vivo con precio y cuenta regresiva","Probabilidad de tocar la apertura"],no:["Análisis y pestañas avanzadas","Bitácora Auto","Burbuja flotante"]},
+ p7:{n:"Pro",usd:15,ms:7*864e5,dur:"7 días",pages:["resumen","tendencia","adv","tf","avisos"],pop:1,yes:["Todo lo de Prueba","Estructura y Flujo · Sesiones","Señales 15M · 1H","Bitácora manual"],no:["Análisis Avanzado y Radar Táctico","Bitácora Auto y mapa de calor"]},
+ p30:{n:"Completo",usd:35,ms:30*864e5,dur:"30 días",pages:"all",yes:["Todas las funciones del bot","Análisis Avanzado y Radar Táctico","Bitácora Auto con mapa de calor","Burbuja flotante y modo rápido","Mejoras nuevas incluidas"],no:[]}
+};
+const K_LIC="qs_lic_v2",K_REQ="qs_req_v2",K_USEDL="qs_usedlic_v2",K_AH="qs_admin_reqs_v2",K_PRIV="qs_admin_key_v2";
 const K_ACC="qs_access_v1",K_DEV="qs_device_v1",K_USED="qs_used_v1",K_SEEN="qs_seen_v1",K_HIST="qs_admin_hist_v1",K_OUT="qs_loggedout_v1";
 // ---------- SHA-256 / HMAC (síncronos, sin depender de crypto.subtle) ----------
 const K256=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
@@ -1204,7 +1214,22 @@ html.qs-locked body>*:not(#qsGate):not(script){display:none!important}
 .qs-fl{position:absolute;bottom:-90px;will-change:transform,opacity;animation:qsFloat linear infinite}
 @keyframes qsFloat{0%{transform:translate3d(0,0,0) rotate(0deg);opacity:0}8%{opacity:var(--o)}50%{transform:translate3d(var(--dx),-55vh,0) rotate(180deg)}92%{opacity:var(--o)}100%{transform:translate3d(calc(var(--dx)*-.6),-118vh,0) rotate(360deg);opacity:0}}
 @media (prefers-reduced-motion:reduce){.qs-fl{animation:none;opacity:.1;bottom:20%}}
-.qs-card{position:relative;z-index:1}#qsGate .qs-card{margin:auto}`;
+.qs-card{position:relative;z-index:1}#qsGate .qs-card{margin:auto}
+#qsGate{overflow:auto}.qs-wide{max-width:900px}.qs-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+.qs-plan{position:relative;background:#0c1017;border:1px solid #232a38;border-radius:16px;padding:20px 16px;display:flex;flex-direction:column;transition:transform .2s,border-color .2s}
+.qs-plan:hover{transform:translateY(-4px);border-color:rgba(60,255,60,.5)}.qs-plan.pop{border-color:#3cff3c;box-shadow:0 0 28px rgba(60,255,60,.18)}
+.qs-plan .tag{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#3cff3c;color:#04121a;font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;letter-spacing:.6px;white-space:nowrap}
+.qs-plan h3{margin:0;font-size:18px;text-align:center}.qs-plan .pr{font-size:34px;font-weight:800;text-align:center;margin:8px 0 0;color:#3cff3c}.qs-plan .pr small{font-size:13px;color:#8b92a5;font-weight:600}
+.qs-plan .du{text-align:center;color:#8b92a5;font-size:12px;margin-bottom:12px}.qs-plan ul{list-style:none;margin:0 0 14px;padding:0;font-size:13px;color:#cdd3df;flex:1}
+.qs-plan li{padding:5px 0 5px 22px;position:relative}.qs-plan li::before{content:"✓";position:absolute;left:0;color:#3cff3c;font-weight:800}.qs-plan li.no{color:#5d667a}.qs-plan li.no::before{content:"✕";color:#5d667a}
+.qs-plan .qs-btn{margin-top:0}
+.qs-pay{background:#0c1017;border:1px dashed rgba(60,255,60,.4);border-radius:12px;padding:12px;margin-top:14px;font-size:13px;color:#cdd3df}
+.qs-pay b{color:#3cff3c;font-family:ui-monospace,Menlo,monospace;font-size:18px}
+.qs-ta{width:100%;min-height:84px;background:#0c1017;border:1px solid #232a38;border-radius:10px;padding:10px;color:#fff;font-size:12px;font-family:ui-monospace,Menlo,monospace;resize:vertical}
+.qs-st{display:inline-block;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:800}.qs-st.p{background:rgba(250,204,21,.15);color:#facc15}.qs-st.o{background:rgba(14,203,129,.15);color:#0ecb81}.qs-st.r{background:rgba(246,70,93,.15);color:#f6465d}
+.qs-steps{display:flex;gap:6px;margin:6px 0 4px;font-size:11px;color:#6b7385}.qs-steps span{flex:1;text-align:center;padding:6px 2px;border-radius:8px;background:#0c1017}.qs-steps span.on{color:#3cff3c;border:1px solid rgba(60,255,60,.35)}
+@media(max-width:760px){.qs-plans{grid-template-columns:1fr}}
+`;
 const LOGOS=[
  s=>`<svg width="${s}" height="${s}" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#f7931a"/><text x="32" y="45" text-anchor="middle" font-size="38" font-weight="800" fill="#fff" font-family="Arial,sans-serif">₿</text></svg>`,
  s=>`<svg width="${s}" height="${s}" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#627eea"/><path d="M32 10 18 33l14 8 14-8z" fill="#fff" opacity=".9"/><path d="M32 44 18 36l14 20 14-20z" fill="#fff" opacity=".7"/></svg>`,
@@ -1227,36 +1252,19 @@ function resetGate(){gate.innerHTML="";try{addBg(gate,"qs-bg")}catch(e){}}
 function copy(txt,btn){const done=()=>{if(btn){const o=btn.textContent;btn.textContent="¡Copiado!";setTimeout(()=>btn.textContent=o,1200)}};
   try{navigator.clipboard.writeText(txt).then(done,()=>{fallback()})}catch(e){fallback()}
   function fallback(){const t=el("textarea");t.value=txt;document.body.appendChild(t);t.select();try{document.execCommand("copy")}catch(e){}t.remove();done()}}
-function startBot(label,exp){
+function startBot(label,exp,plan){
   if(started)return;started=true;
   ls.set(K_OUT,"");
   {const lo=document.getElementById("btnLogout");
    if(lo)lo.onclick=()=>{if(confirm("¿Cerrar sesión?\n\nPara volver a entrar tendrás que escribir de nuevo tu código de acceso (no se consume ni pierdes tiempo).")){ls.set(K_OUT,"1");location.reload()}}}
-  document.documentElement.classList.remove("qs-locked");if(gate)gate.remove();
+  document.documentElement.classList.remove("qs-locked");if(gate)gate.remove();try{applyPlan(plan)}catch(e){}
   try{addBg(document.body,null,"qsBgApp")}catch(e){}
   if(exp){const pill=el("div",{id:"qsPill"});document.body.appendChild(pill);
     const upd=()=>{const left=exp-nowMs();if(left<=0){location.reload();return}
-      const h=Math.floor(left/3600000),d=Math.floor(h/24);pill.textContent="🔑 Acceso: "+(d>=1?d+" d "+(h%24)+" h":h+" h "+Math.floor(left%3600000/60000)+" min")};
+      const h=Math.floor(left/3600000),d=Math.floor(h/24);pill.textContent="🔑 "+(PLANS[plan]?PLANS[plan].n+" · ":"Acceso: ")+(d>=1?d+" d "+(h%24)+" h":h+" h "+Math.floor(left%3600000/60000)+" min")};
     upd();setInterval(()=>{if(!seenOk())location.reload();upd()},30000)}
   else{const pill=el("div",{id:"qsPill"},"🛠️ Admin");document.body.appendChild(pill)}
   window.__startBot();}
-function showLogin(msg){
-  resetGate();const dev=deviceId();
-  const card=el("div",{class:"qs-card"},`<img class="qs-logo" src="${window.QS_LOGO||""}" alt=""><div class="qs-brand">Quantum <b>Scalper</b></div><div class="qs-sub">Acceso con código · BTC 5M · 15M · 1H</div>
-  <div class="qs-lbl">Tu código de acceso</div>
-  <input class="qs-in" id="qsCode" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" autocapitalize="characters" spellcheck="false">
-  <button class="qs-btn" id="qsEnter">Entrar</button><div class="qs-err" id="qsErr">${msg||""}</div>
-  <a class="qs-link" id="qsAdmin">Admin</a>`);
-  gate.appendChild(card);
-  const inp=card.querySelector("#qsCode"),err=card.querySelector("#qsErr");
-  inp.addEventListener("input",()=>{const c=inp.value.toUpperCase().replace(/[^A-Z2-9]/g,"").slice(0,16);inp.value=c.match(/.{1,4}/g)?c.match(/.{1,4}/g).join("-"):""});
-  const go=()=>{err.className="qs-err";
-    if(!seenOk()){err.textContent="La hora de tu dispositivo parece alterada. Corrígela.";return}
-    const r=activate(inp.value);
-    if(!r.ok){err.textContent=r.err;return}
-    startBot("",r.access.exp)};
-  card.querySelector("#qsEnter").onclick=go;inp.addEventListener("keydown",e=>{if(e.key==="Enter")go()});
-  card.querySelector("#qsAdmin").onclick=showPin;}
 let tries=0,lockUntil=0;
 function showPin(){
   resetGate();
@@ -1276,7 +1284,7 @@ function showAdmin(){
   <div class="qs-row"><button class="qs-btn" id="qsG1">24 horas</button><button class="qs-btn" id="qsG3">1 semana</button><button class="qs-btn" id="qsG2">1 mes</button></div>
   <div class="qs-err" id="qsErr"></div><div id="qsOut"></div>
   <div class="qs-lbl">Códigos generados (guardados solo en este navegador)</div><div class="qs-hist" id="qsHist"></div>
-  <button class="qs-btn sec" id="qsClr" style="margin-top:8px">Borrar lista de códigos</button><button class="qs-btn" id="qsOwn">Entrar al bot (admin)</button><button class="qs-btn sec" id="qsExit">Cerrar admin</button>`);
+  <button class="qs-btn sec" id="qsClr" style="margin-top:8px">Borrar lista de códigos</button><button class="qs-btn" id="qsReqs" style="background:linear-gradient(135deg,#facc15,#d4a000)">📥 Solicitudes de clientes</button><button class="qs-btn" id="qsOwn">Entrar al bot (admin)</button><button class="qs-btn sec" id="qsExit">Cerrar admin</button>`);
   gate.appendChild(card);
   const err=card.querySelector("#qsErr"),out=card.querySelector("#qsOut"),hist=card.querySelector("#qsHist");
   const fd=ms=>new Date(ms).toLocaleString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
@@ -1300,8 +1308,159 @@ function showAdmin(){
     let h=[];try{h=JSON.parse(ls.get(K_HIST)||"[]")}catch(e){}h.push({code,label,t:Date.now()});ls.set(K_HIST,JSON.stringify(h.slice(-100)));drawHist()};
   card.querySelector("#qsG1").onclick=()=>gen(1);card.querySelector("#qsG3").onclick=()=>gen(3);card.querySelector("#qsG2").onclick=()=>gen(2);
   card.querySelector("#qsClr").onclick=()=>{if(confirm("¿Borrar la lista? Los códigos ya entregados siguen funcionando.")){ls.set(K_HIST,"[]");drawHist()}};
-  card.querySelector("#qsOwn").onclick=()=>startBot("",0);
+  card.querySelector("#qsOwn").onclick=()=>startBot("",0);card.querySelector("#qsReqs").onclick=showReqs;
   card.querySelector("#qsExit").onclick=()=>showLogin();}
+
+// ======== v8.0 · LOGIN CON PLANES (firmas digitales, sin servidor) ========
+const esc=t=>String(t==null?"":t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const SUB=(window.crypto||{}).subtle,TE=new TextEncoder(),TD=new TextDecoder();
+const b64u=b=>{let s="";new Uint8Array(b).forEach(x=>s+=String.fromCharCode(x));return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")};
+const unb64u=t=>{t=String(t).replace(/-/g,"+").replace(/_/g,"/");while(t.length%4)t+="=";const s=atob(t),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a};
+const jenc=o=>b64u(TE.encode(JSON.stringify(o))),jdec=t=>JSON.parse(TD.decode(unb64u(t)));
+async function pbk(pass,salt){const k=await SUB.importKey("raw",TE.encode(pass),"PBKDF2",false,["deriveBits"]);return new Uint8Array(await SUB.deriveBits({name:"PBKDF2",salt,iterations:150000,hash:"SHA-256"},k,256))}
+async function signTok(prefix,obj,jwk){const key=await SUB.importKey("jwk",jwk,{name:"ECDSA",namedCurve:"P-256"},false,["sign"]),body=jenc(obj),
+  sig=await SUB.sign({name:"ECDSA",hash:"SHA-256"},key,TE.encode(prefix+"."+body));return prefix+"."+body+"."+b64u(sig)}
+async function verTok(tok,prefix){try{const p=String(tok||"").trim().split(".");if(p.length!==3||p[0]!==prefix)return null;
+  const key=await SUB.importKey("jwk",PUB,{name:"ECDSA",namedCurve:"P-256"},false,["verify"]);
+  const ok=await SUB.verify({name:"ECDSA",hash:"SHA-256"},key,unb64u(p[2]),TE.encode(p[0]+"."+p[1]));return ok?jdec(p[1]):null}catch(e){return null}}
+const jget=k=>{try{return JSON.parse(ls.get(k)||"null")}catch(e){return null}};
+const fdt=ms=>new Date(ms).toLocaleString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+function loadLic(){const l=jget(K_LIC);return l&&l.tok&&l.act?l:null}
+async function licInfo(){const l=loadLic();if(!l)return null;const pl=await verTok(l.tok,"QSL1");
+  if(!pl||pl.dev!==deviceId()||!PLANS[pl.plan])return null;return{l,pl,exp:l.act+PLANS[pl.plan].ms}}
+async function notifyAdmin(req,code){
+  if(!(NOTIFY.token&&NOTIFY.chat))return;
+  try{await fetch("https://api.telegram.org/bot"+NOTIFY.token+"/sendMessage",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({chat_id:NOTIFY.chat,text:"🔔 Nueva solicitud\nUsuario: "+req.u+"\nPlan: "+PLANS[req.plan].n+" ("+PLANS[req.plan].usd+" USDT)\nID transacción: "+req.tx+"\n\nCódigo:\n"+code})})}catch(e){}}
+const hdr=(sub)=>`<img class="qs-logo" src="${window.QS_LOGO||""}" alt=""><div class="qs-brand">Quantum <b>Scalper</b></div><div class="qs-sub">${sub}</div>`;
+function showLogin(msg){
+  resetGate();
+  const card=el("div",{class:"qs-card"},hdr("Señales BTC 5M · 15M · 1H")+`
+  <div class="qs-lbl">Usuario</div><input class="qs-in" id="qsU" placeholder="tu usuario" autocomplete="username" autocapitalize="none" spellcheck="false" style="letter-spacing:0;font-family:inherit">
+  <div class="qs-lbl">Contraseña</div><input class="qs-in" id="qsP" type="password" placeholder="••••••••" autocomplete="current-password" style="letter-spacing:0;font-family:inherit">
+  <button class="qs-btn" id="qsEnter">Entrar</button><div class="qs-err" id="qsErr">${esc(msg||"")}</div>
+  <button class="qs-btn sec" id="qsPlans" style="margin-top:4px">Ver planes y solicitar acceso</button>
+  <a class="qs-link" id="qsStatus">Ver estado de mi solicitud / pegar código de acceso</a>
+  <a class="qs-link" id="qsLegacy" style="margin-top:8px">Tengo un código de 16 caracteres</a><a class="qs-link" id="qsAdmin" style="margin-top:8px">Admin</a>`);
+  gate.appendChild(card);const err=card.querySelector("#qsErr"),U=card.querySelector("#qsU"),P=card.querySelector("#qsP");
+  const go=async()=>{err.className="qs-err";
+    if(!SUB){err.textContent="Tu navegador no permite el acceso seguro. Usa Chrome, Edge, Safari o Firefox actualizado (y abre la página con https).";return}
+    if(!seenOk()){err.textContent="La hora de tu dispositivo parece alterada. Corrígela.";return}
+    if(Date.now()<lockUntil){err.textContent="Espera "+Math.ceil((lockUntil-Date.now())/1000)+" s para intentar de nuevo.";return}
+    const u=U.value.trim().toLowerCase(),info=await licInfo();
+    if(!info||info.pl.u!==u){fail("Usuario o contraseña incorrectos, o este dispositivo no tiene acceso activo. Si ya te aprobaron, usa «Ver estado de mi solicitud» para pegar tu código.");return}
+    const h=await pbk(P.value,unb64u(info.pl.salt));
+    if(b64u(h)!==info.pl.h){fail("Usuario o contraseña incorrectos.");return}
+    if(info.exp<=nowMs()){err.textContent="Tu plan venció. Elige un plan para renovar.";return}
+    tries=0;ls.set(K_OUT,"");startBot("",info.exp,info.pl.plan)};
+  const fail=m=>{err.textContent=m;P.value="";tries++;if(tries>=5){lockUntil=Date.now()+60000;tries=0}};
+  card.querySelector("#qsEnter").onclick=go;P.addEventListener("keydown",e=>{if(e.key==="Enter")go()});
+  card.querySelector("#qsPlans").onclick=showPlans;card.querySelector("#qsStatus").onclick=()=>showStatus();
+  card.querySelector("#qsLegacy").onclick=showLegacy;card.querySelector("#qsAdmin").onclick=showPin}
+function showLegacy(msg){
+  resetGate();const card=el("div",{class:"qs-card"},hdr("Acceso con código")+`<div class="qs-lbl">Tu código de acceso</div>
+  <input class="qs-in" id="qsCode" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" autocapitalize="characters" spellcheck="false">
+  <button class="qs-btn" id="qsEnter">Entrar</button><div class="qs-err" id="qsErr">${esc(msg||"")}</div><a class="qs-link" id="qsBack">Volver</a>`);
+  gate.appendChild(card);const inp=card.querySelector("#qsCode"),err=card.querySelector("#qsErr");
+  inp.addEventListener("input",()=>{const c=inp.value.toUpperCase().replace(/[^A-Z2-9]/g,"").slice(0,16);inp.value=c.match(/.{1,4}/g)?c.match(/.{1,4}/g).join("-"):""});
+  const go=()=>{err.className="qs-err";if(!seenOk()){err.textContent="La hora de tu dispositivo parece alterada. Corrígela.";return}
+    const r=activate(inp.value);if(!r.ok){err.textContent=r.err;return}startBot("",r.access.exp)};
+  card.querySelector("#qsEnter").onclick=go;inp.addEventListener("keydown",e=>{if(e.key==="Enter")go()});card.querySelector("#qsBack").onclick=()=>showLogin()}
+function showPlans(){
+  resetGate();
+  const cards=Object.keys(PLANS).map(k=>{const P=PLANS[k];return `<div class="qs-plan${P.pop?" pop":""}">${P.pop?'<div class="tag">MÁS POPULAR</div>':""}<h3>${P.n}</h3>
+    <div class="pr">${P.usd}<small> USDT</small></div><div class="du">${P.dur} de acceso</div>
+    <ul>${P.yes.map(x=>"<li>"+esc(x)+"</li>").join("")}${P.no.map(x=>'<li class="no">'+esc(x)+"</li>").join("")}</ul>
+    <button class="qs-btn" data-p="${k}">Elegir ${P.n}</button></div>`}).join("");
+  const card=el("div",{class:"qs-card qs-wide"},hdr("Elige tu plan")+`<div class="qs-plans">${cards}</div>
+   <div class="qs-sub" style="margin:16px 0 0">Pagas en USDT, envías tu ID de transacción y el administrador aprueba tu acceso. Los resultados pasados no garantizan ganancias futuras.</div><a class="qs-link" id="qsBack">Volver</a>`);
+  gate.appendChild(card);card.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>showRequest(b.dataset.p));card.querySelector("#qsBack").onclick=()=>showLogin()}
+function showRequest(pk){
+  resetGate();const P=PLANS[pk];
+  const card=el("div",{class:"qs-card"},hdr("Solicitar acceso · Plan "+P.n)+`
+  <div class="qs-steps"><span class="on">1 · Cuenta</span><span class="on">2 · Pago</span><span>3 · Aprobación</span></div>
+  <div class="qs-lbl">Crea tu usuario</div><input class="qs-in" id="qsU" placeholder="usuario (3-20 letras o números)" maxlength="20" autocapitalize="none" spellcheck="false" style="letter-spacing:0;font-family:inherit">
+  <div class="qs-lbl">Crea tu contraseña</div><input class="qs-in" id="qsP" type="password" placeholder="mínimo 8 caracteres" autocomplete="new-password" style="letter-spacing:0;font-family:inherit">
+  <div class="qs-pay">Paga <b>${P.usd} USDT</b> por ${P.dur} a:<br>${esc(PAY.net)} · ID <b>${PAY.id}</b> <button class="qs-mini" id="qsCpId">Copiar ID</button></div>
+  <div class="qs-lbl">ID de la transacción</div><input class="qs-in" id="qsTx" placeholder="pega aquí el ID de tu pago" autocomplete="off" spellcheck="false" style="letter-spacing:0;font-size:14px">
+  <div class="qs-sub" style="margin:8px 0 0;text-align:left;font-size:12px">Si quieres, envía también una captura del pago al administrador.</div>
+  <button class="qs-btn" id="qsSend">Enviar solicitud</button><div class="qs-err" id="qsErr"></div><a class="qs-link" id="qsBack">Cambiar de plan</a>`);
+  gate.appendChild(card);const err=card.querySelector("#qsErr");
+  card.querySelector("#qsCpId").onclick=e=>copy(PAY.id,e.target);card.querySelector("#qsBack").onclick=showPlans;
+  card.querySelector("#qsSend").onclick=async()=>{err.className="qs-err";
+    const u=card.querySelector("#qsU").value.trim().toLowerCase(),pw=card.querySelector("#qsP").value,tx=card.querySelector("#qsTx").value.trim();
+    if(!SUB){err.textContent="Tu navegador no permite el acceso seguro. Usa uno actualizado y abre la página con https.";return}
+    if(!/^[a-z0-9_]{3,20}$/.test(u)){err.textContent="Usuario: 3 a 20 letras minúsculas, números o _ .";return}
+    if(pw.length<8){err.textContent="La contraseña debe tener al menos 8 caracteres.";return}
+    if(tx.length<6||tx.length>120){err.textContent="Escribe el ID de la transacción.";return}
+    const salt=rnd(16),h=await pbk(pw,salt),req={v:1,u,salt:b64u(salt),h:b64u(h),plan:pk,tx,dev:deviceId(),ts:Date.now()},code="QSR1."+jenc(req);
+    ls.set(K_REQ,JSON.stringify({req,code,sentAt:Date.now()}));notifyAdmin(req,code);showStatus()}}
+async function showStatus(msg,rej){
+  resetGate();const R=jget(K_REQ),info=await licInfo();
+  let st="",box="";
+  if(info){st=`<span class="qs-st o">ACTIVO</span>`;box=`<div class="qs-sub">Plan ${PLANS[info.pl.plan].n} · vence ${fdt(info.exp)}</div>`}
+  else if(rej){st=`<span class="qs-st r">RECHAZADA</span>`;box=`<div class="qs-sub">${esc(rej)}</div>`}
+  else if(R){st=`<span class="qs-st p">PENDIENTE DE APROBACIÓN</span>`;box=`<div class="qs-sub">Usuario <b>${esc(R.req.u)}</b> · Plan ${PLANS[R.req.plan].n} · ${esc(R.req.tx.slice(0,24))}</div>
+    <div class="qs-lbl">Tu código de solicitud (envíaselo al administrador)</div><textarea class="qs-ta" readonly id="qsReqC">${esc(R.code)}</textarea>
+    <div class="qs-row"><button class="qs-btn sec" id="qsCpReq">Copiar solicitud</button>${NOTIFY.tg?'<button class="qs-btn" id="qsTg">Enviar por Telegram</button>':""}</div>`}
+  const card=el("div",{class:"qs-card"},hdr("Estado de tu solicitud")+`<div style="text-align:center;margin-bottom:6px">${st||'<span class="qs-st p">SIN SOLICITUD</span>'}</div>${box}
+  <div class="qs-steps"><span class="on">1 · Cuenta</span><span class="on">2 · Pago</span><span class="${info?"on":""}">3 · Aprobación</span></div>
+  <div class="qs-lbl">Código de respuesta del administrador</div><textarea class="qs-ta" id="qsResp" placeholder="Pega aquí el código que te envió el administrador (empieza con QSL1. o QSX1.)"></textarea>
+  <button class="qs-btn" id="qsAct">Activar / ver respuesta</button><div class="qs-err" id="qsErr">${esc(msg||"")}</div>
+  ${info?'<button class="qs-btn sec" id="qsGo">Entrar al bot</button>':""}<a class="qs-link" id="qsBack">Volver al inicio de sesión</a>`);
+  gate.appendChild(card);const err=card.querySelector("#qsErr");
+  if(card.querySelector("#qsCpReq"))card.querySelector("#qsCpReq").onclick=e=>copy(R.code,e.target);
+  if(card.querySelector("#qsTg"))card.querySelector("#qsTg").onclick=()=>window.open("https://t.me/"+NOTIFY.tg.replace(/^@/,"")+"?text="+encodeURIComponent(R.code),"_blank");
+  if(card.querySelector("#qsGo"))card.querySelector("#qsGo").onclick=()=>showLogin("Escribe tu usuario y contraseña.");
+  card.querySelector("#qsBack").onclick=()=>showLogin();
+  card.querySelector("#qsAct").onclick=async()=>{err.className="qs-err";const t=card.querySelector("#qsResp").value.trim().replace(/\s+/g,"");
+    if(!SUB){err.textContent="Tu navegador no permite el acceso seguro.";return}
+    if(!seenOk()){err.textContent="La hora de tu dispositivo parece alterada. Corrígela.";return}
+    if(t.startsWith("QSX1.")){const x=await verTok(t,"QSX1");if(!x){err.textContent="Código no válido.";return}
+      const mine=jget(K_REQ);if(mine&&mine.req.u===x.u&&mine.req.ts===x.rts){ls.set(K_REQ,"");showStatus("",x.note||"El administrador no pudo verificar tu pago.")}else err.textContent="Este código no corresponde a tu solicitud.";return}
+    const pl=await verTok(t,"QSL1");if(!pl){err.textContent="Código no válido. Cópialo completo, tal como te lo envió el administrador.";return}
+    if(pl.dev!==deviceId()){err.textContent="Este código fue creado para otro dispositivo. Solicítalo desde este dispositivo.";return}
+    if(!PLANS[pl.plan]){err.textContent="Plan no reconocido.";return}
+    const n=nowMs();if(n>pl.ts+7*864e5){err.textContent="Este código venció sin activarse. Pide uno nuevo.";return}
+    if(n<pl.ts-10*60000){err.textContent="La hora de tu dispositivo no es correcta.";return}
+    const used=jget(K_USEDL)||[],sig=t.split(".")[2],cur=loadLic();
+    if(!(cur&&cur.tok===t)){if(used.includes(sig)){err.textContent="Este código ya fue usado.";return}
+      ls.set(K_LIC,JSON.stringify({tok:t,act:n}));used.push(sig);ls.set(K_USEDL,JSON.stringify(used.slice(-30)));ls.set(K_REQ,"")}
+    ls.set(K_OUT,"");showStatus("¡Listo! Tu acceso está activo.")}}
+// ---- panel admin: solicitudes ----
+function showReqs(){
+  resetGate();
+  const card=el("div",{class:"qs-card"},`<div class="qs-brand">Solicitudes</div><div class="qs-sub">Revisa el pago y aprueba</div>
+  <div id="qsKey"></div><div class="qs-lbl">Pega la solicitud del cliente</div><textarea class="qs-ta" id="qsRq" placeholder="QSR1...."></textarea>
+  <button class="qs-btn" id="qsRev">Revisar</button><div class="qs-err" id="qsErr"></div><div id="qsDet"></div>
+  <div class="qs-lbl">Historial</div><div class="qs-hist" id="qsHist"></div><a class="qs-link" id="qsBack">Volver al panel</a>`);
+  gate.appendChild(card);const err=card.querySelector("#qsErr"),det=card.querySelector("#qsDet"),hist=card.querySelector("#qsHist"),kb=card.querySelector("#qsKey");
+  const drawKey=()=>{const k=ls.get(K_PRIV);kb.innerHTML=k?'<div class="small" style="color:#0ecb81;font-size:12px">🔑 Clave de firma cargada en este navegador.</div>':
+    '<div class="qs-lbl">Pega tu clave de firma (solo una vez)</div><textarea class="qs-ta" id="qsKt" placeholder=\'{"kty":"EC",...}\'></textarea><button class="qs-btn sec" id="qsKs">Guardar clave</button>';
+    const b=kb.querySelector("#qsKs");if(b)b.onclick=()=>{try{const j=JSON.parse(kb.querySelector("#qsKt").value);if(!j.d)throw 0;ls.set(K_PRIV,JSON.stringify(j));drawKey()}catch(e){err.textContent="La clave no es válida."}}};
+  drawKey();
+  const drawH=()=>{const h=jget(K_AH)||[];hist.innerHTML=h.length?h.slice().reverse().map(x=>`<div><b>${esc(x.u)}</b> · ${esc(x.plan)} · ${x.ok?"✅ aprobado":"❌ rechazado"}<br>${fdt(x.t)} · tx ${esc(String(x.tx).slice(0,18))}</div>`).join(""):"Todavía no hay."};drawH();
+  card.querySelector("#qsBack").onclick=showAdmin;
+  card.querySelector("#qsRev").onclick=()=>{err.textContent="";det.innerHTML="";const t=card.querySelector("#qsRq").value.trim().replace(/\s+/g,"");
+    let rq;try{if(!t.startsWith("QSR1."))throw 0;rq=jdec(t.slice(5));if(!rq.u||!PLANS[rq.plan]||!rq.h||!rq.salt||!rq.dev)throw 0}catch(e){err.textContent="La solicitud no tiene el formato correcto.";return}
+    const P=PLANS[rq.plan];
+    det.innerHTML=`<div class="qs-out" style="text-align:left"><div>Usuario: <b>${esc(rq.u)}</b></div><div>Plan: <b>${P.n}</b> · ${P.usd} USDT · ${P.dur}</div><div>ID transacción: <b style="word-break:break-all">${esc(rq.tx)}</b></div><div>Dispositivo: ${esc(rq.dev)}</div><div>Enviada: ${fdt(rq.ts)}</div>
+    <div class="small" style="color:#facc15;margin-top:8px;font-size:12px">Verifica en Binance que el pago de ${P.usd} USDT con ese ID llegó a tu cuenta.</div>
+    <div class="qs-row"><button class="qs-btn" id="qsOk">Aprobar</button><button class="qs-btn sec" id="qsNo">Rechazar</button></div><div id="qsRes"></div></div>`;
+    const priv=()=>{try{return JSON.parse(ls.get(K_PRIV))}catch(e){return null}};
+    const done=async(ok)=>{const k=priv();if(!k){err.textContent="Primero guarda tu clave de firma.";return}
+      const note=ok?"":(prompt("Motivo (opcional):","No se pudo verificar el pago.")||"No se pudo verificar el pago.");
+      const tok=ok?await signTok("QSL1",{v:1,u:rq.u,salt:rq.salt,h:rq.h,plan:rq.plan,dev:rq.dev,ts:Date.now()},k):await signTok("QSX1",{v:1,u:rq.u,rts:rq.ts,note,ts:Date.now()},k);
+      const hh=jget(K_AH)||[];hh.push({u:rq.u,plan:P.n,ok,t:Date.now(),tx:rq.tx});ls.set(K_AH,JSON.stringify(hh.slice(-200)));drawH();
+      det.querySelector("#qsRes").innerHTML=`<div class="qs-lbl">Envíale este código al cliente (${ok?"aprobación":"rechazo"})</div><textarea class="qs-ta" readonly>${esc(tok)}</textarea><button class="qs-btn sec" id="qsCpT">Copiar código</button>`;
+      det.querySelector("#qsCpT").onclick=e=>copy(tok,e.target)};
+    det.querySelector("#qsOk").onclick=()=>done(true);det.querySelector("#qsNo").onclick=()=>done(false)}}
+// ---- planes dentro del bot ----
+function applyPlan(pk){
+  const P=PLANS[pk];if(!P||P.pages==="all")return;
+  const hide=["resumen","tendencia","pro","adv","senales","tf","avisos","auto"].filter(x=>!P.pages.includes(x));
+  const st=el("style",null,hide.map(x=>`.nav button[data-page="${x}"],#page-${x}{display:none!important}`).join("")+"#btnBubble{display:none!important}");
+  document.head.appendChild(st)}
 function boot(){
   const st=el("style",null,css);document.head.appendChild(st);
   document.documentElement.classList.add("qs-locked");
@@ -1309,14 +1468,18 @@ function boot(){
   // hora de Binance para detectar relojes alterados (si no responde, se usa la local)
   const done=()=>{
     const acc=loadAccess();
-    if(acc&&acc.exp>nowMs()&&seenOk()&&!ls.get(K_OUT)){startBot("",acc.exp);return}
+    licInfo().then(info=>{
+      if(info&&info.exp>nowMs()&&seenOk()&&!ls.get(K_OUT)){startBot("",info.exp,info.pl.plan);return}
+      if(acc&&acc.exp>nowMs()&&seenOk()&&!ls.get(K_OUT)){startBot("",acc.exp);return}
+      showLogin(info&&info.exp<=nowMs()?"Tu plan venció. Elige un plan para renovar.":(acc&&acc.exp<=nowMs()?"Tu acceso venció. Pide un código nuevo al administrador.":(ls.get(K_OUT)?"Sesión cerrada. Escribe tu usuario y contraseña para volver a entrar.":"")))}).catch(()=>showLogin());
+    return;
     showLogin(acc&&acc.exp<=nowMs()?"Tu acceso venció. Pide un código nuevo al administrador.":(ls.get(K_OUT)?"Sesión cerrada. Escribe tu código para volver a entrar.":""))};
   let fin=false;const go=()=>{if(!fin){fin=true;done()}};
   try{const c=new AbortController();setTimeout(()=>c.abort(),3500);
     fetch("https://api.binance.com/api/v3/time",{signal:c.signal,cache:"no-store"}).then(r=>r.json()).then(j=>{if(j&&j.serverTime){const off=j.serverTime-Date.now();if(Math.abs(off)>120000)timeOffset=off}go()}).catch(go)}catch(e){go()}
   setTimeout(go,4000);
 }
-if(window.__GATE_TEST){window.__gate={sha256,hmac,hex,enc,genCode,checkCode,activate,loadAccess,deviceId,DURS,REDEEM_DAYS,fromCode,setOffset:v=>{timeOffset=v}}}
+if(window.__GATE_TEST){window.__gate={PLANS,verTok,signTok,pbk,b64u,unb64u,licInfo,sha256,hmac,hex,enc,genCode,checkCode,activate,loadAccess,deviceId,DURS,REDEEM_DAYS,fromCode,setOffset:v=>{timeOffset=v}}}
 else if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
 })();
 
