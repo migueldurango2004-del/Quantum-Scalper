@@ -1119,12 +1119,15 @@ const DURS={1:{ms:24*3600*1000,label:"24 horas"},2:{ms:30*24*3600*1000,label:"1 
 const PUB={"kty":"EC","crv":"P-256","x":"LBMbb_R1A2e5GF4Fxhe012mO6CP973zPvYOHDbj1Vpg","y":"XQBa0yHSHyxF-zX6Fm1z5YFTfGjGa4tH5xuetoKMhmg"};
 const PAY={id:"874968696",net:"Binance Pay · USDT"};
 // Aviso opcional por Telegram al recibir una solicitud (otro bot, independiente del bot de señales). Déjalo vacío para usar solo copiar/pegar.
-const NOTIFY={token:"",chat:"8267450265:AAFrO50ySyXXYKuwyShX2g4BUIG3AdnLasY",tg:"7649343185"};
+const NOTIFY={token:"",chat:"",tg:""};
 const PLANS={
  p1:{n:"Prueba",usd:2,ms:864e5,dur:"1 día",pages:["resumen"],yes:["Vista General con el Centro de mando","Señal en vivo con precio y cuenta regresiva","Probabilidad de tocar la apertura"],no:["Análisis y pestañas avanzadas","Bitácora Auto","Burbuja flotante"]},
  p7:{n:"Pro",usd:15,ms:7*864e5,dur:"7 días",pages:["resumen","tendencia","adv","tf","avisos"],pop:1,yes:["Todo lo de Prueba","Estructura y Flujo · Sesiones","Señales 15M · 1H","Bitácora manual"],no:["Análisis Avanzado y Radar Táctico","Bitácora Auto y mapa de calor"]},
  p30:{n:"Completo",usd:35,ms:30*864e5,dur:"30 días",pages:"all",yes:["Todas las funciones del bot","Análisis Avanzado y Radar Táctico","Bitácora Auto con mapa de calor","Burbuja flotante y modo rápido","Mejoras nuevas incluidas"],no:[]}
 };
+// Servidor gratuito (Supabase): pega aquí la URL y la clave "anon public" de tu proyecto. Si queda vacío, se usa el modo copiar/pegar.
+const SB={url:"https://mqgiivqdzkcudbzcavyq.supabase.co",key:"sb_publishable_ksPLrB7SOHL-7TVa6Hco9w_0KS1NIcc"};
+const K_SBE="qs_sb_email_v2";
 const K_LIC="qs_lic_v2",K_REQ="qs_req_v2",K_USEDL="qs_usedlic_v2",K_AH="qs_admin_reqs_v2",K_PRIV="qs_admin_key_v2";
 const K_ACC="qs_access_v1",K_DEV="qs_device_v1",K_USED="qs_used_v1",K_SEEN="qs_seen_v1",K_HIST="qs_admin_hist_v1",K_OUT="qs_loggedout_v1";
 // ---------- SHA-256 / HMAC (síncronos, sin depender de crypto.subtle) ----------
@@ -1332,6 +1335,15 @@ async function notifyAdmin(req,code){
   if(!(NOTIFY.token&&NOTIFY.chat))return;
   try{await fetch("https://api.telegram.org/bot"+NOTIFY.token+"/sendMessage",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({chat_id:NOTIFY.chat,text:"🔔 Nueva solicitud\nUsuario: "+req.u+"\nPlan: "+PLANS[req.plan].n+" ("+PLANS[req.plan].usd+" USDT)\nID transacción: "+req.tx+"\n\nCódigo:\n"+code})})}catch(e){}}
+
+const SBon=()=>!!(SB.url&&SB.key);
+async function sbf(path,opt,tokn){const o=opt||{};const r=await fetch(SB.url.replace(/\/$/,"")+path,{method:o.method||"GET",headers:Object.assign({apikey:SB.key,"Content-Type":"application/json"},(tokn||!/^sb_/.test(SB.key))?{Authorization:"Bearer "+(tokn||SB.key)}:{},o.headers||{}),body:o.body?JSON.stringify(o.body):undefined});
+  if(!r.ok){let m="";try{m=(await r.json()).message||""}catch(e){}throw new Error(m||("HTTP "+r.status))}
+  const t=await r.text();return t?JSON.parse(t):null}
+const sbInsert=(row)=>sbf("/rest/v1/requests",{method:"POST",headers:{Prefer:"return=minimal"},body:row});
+const sbStatus=(id,dev)=>sbf("/rest/v1/rpc/my_status",{method:"POST",body:{p_id:id,p_dev:dev}});
+let SBTOK=null;
+const sbLogin=async(email,pass)=>{const r=await sbf("/auth/v1/token?grant_type=password",{method:"POST",body:{email,password:pass}});SBTOK=r.access_token;return r};
 const hdr=(sub)=>`<img class="qs-logo" src="${window.QS_LOGO||""}" alt=""><div class="qs-brand">Quantum <b>Scalper</b></div><div class="qs-sub">${sub}</div>`;
 function showLogin(msg){
   resetGate();
@@ -1394,7 +1406,10 @@ function showRequest(pk){
     if(pw.length<8){err.textContent="La contraseña debe tener al menos 8 caracteres.";return}
     if(tx.length<6||tx.length>120){err.textContent="Escribe el ID de la transacción.";return}
     const salt=rnd(16),h=await pbk(pw,salt),req={v:1,u,salt:b64u(salt),h:b64u(h),plan:pk,tx,dev:deviceId(),ts:Date.now()},code="QSR1."+jenc(req);
-    ls.set(K_REQ,JSON.stringify({req,code,sentAt:Date.now()}));notifyAdmin(req,code);showStatus()}}
+    const id=(crypto.randomUUID?crypto.randomUUID():[...rnd(16)].map(x=>x.toString(16).padStart(2,"0")).join("").replace(/^(.{8})(.{4})(.{4})(.{4})(.{12}).*$/,"$1-$2-$3-$4-$5"));
+    if(SBon()){const b=card.querySelector("#qsSend");b.disabled=true;
+      try{await sbInsert({id,username:u,salt:req.salt,h:req.h,plan:pk,tx,dev:req.dev,ts:req.ts})}catch(e){b.disabled=false;err.textContent="No se pudo enviar la solicitud ("+e.message+"). Intenta de nuevo.";return}}
+    ls.set(K_REQ,JSON.stringify({req,code,id,sentAt:Date.now()}));if(!SBon())notifyAdmin(req,code);showStatus()}}
 async function showStatus(msg,rej){
   resetGate();const R=jget(K_REQ),info=await licInfo();
   let st="",box="";
@@ -1409,11 +1424,24 @@ async function showStatus(msg,rej){
   <button class="qs-btn" id="qsAct">Activar / ver respuesta</button><div class="qs-err" id="qsErr">${esc(msg||"")}</div>
   ${info?'<button class="qs-btn sec" id="qsGo">Entrar al bot</button>':""}<a class="qs-link" id="qsBack">Volver al inicio de sesión</a>`);
   gate.appendChild(card);const err=card.querySelector("#qsErr");
+  if(SBon()){ // modo automático: sin códigos que pegar
+    const rl=card.querySelector("#qsResp");if(rl){rl.parentNode.removeChild(rl.previousElementSibling);rl.remove()}
+    const ab=card.querySelector("#qsAct");if(ab)ab.remove();const rc=card.querySelector("#qsReqC");if(rc){rc.previousElementSibling.remove();rc.remove()}
+    const cr=card.querySelector("#qsCpReq");if(cr)cr.parentNode.remove();
+    if(R&&!info&&R.id){const poll=async()=>{if(!card.isConnected)return;
+        try{const r=(await sbStatus(R.id,deviceId()))||[],x=r[0];
+          if(x&&x.status==="approved"&&x.token){const pl=await verTok(x.token,"QSL1");
+            if(pl&&pl.dev===deviceId()&&PLANS[pl.plan]){ls.set(K_LIC,JSON.stringify({tok:x.token,act:nowMs()}));ls.set(K_REQ,"");ls.set(K_OUT,"");
+              startBot("",nowMs()+PLANS[pl.plan].ms,pl.plan);return}}
+          else if(x&&x.status==="rejected"){ls.set(K_REQ,"");showStatus("",x.note||"El administrador no pudo verificar tu pago.");return}
+        }catch(e){}
+        setTimeout(poll,5000)};
+      box+="";const hint=el("div",{class:"qs-sub",style:"margin-top:10px"},"⏳ Esperando aprobación… esta pantalla se actualiza sola. No la cierres.");card.insertBefore(hint,card.querySelector(".qs-steps"));poll()}}
   if(card.querySelector("#qsCpReq"))card.querySelector("#qsCpReq").onclick=e=>copy(R.code,e.target);
   if(card.querySelector("#qsTg"))card.querySelector("#qsTg").onclick=()=>window.open("https://t.me/"+NOTIFY.tg.replace(/^@/,"")+"?text="+encodeURIComponent(R.code),"_blank");
   if(card.querySelector("#qsGo"))card.querySelector("#qsGo").onclick=()=>showLogin("Escribe tu usuario y contraseña.");
   card.querySelector("#qsBack").onclick=()=>showLogin();
-  card.querySelector("#qsAct").onclick=async()=>{err.className="qs-err";const t=card.querySelector("#qsResp").value.trim().replace(/\s+/g,"");
+  const _ab=card.querySelector("#qsAct");if(_ab)_ab.onclick=async()=>{err.className="qs-err";const t=card.querySelector("#qsResp").value.trim().replace(/\s+/g,"");
     if(!SUB){err.textContent="Tu navegador no permite el acceso seguro.";return}
     if(!seenOk()){err.textContent="La hora de tu dispositivo parece alterada. Corrígela.";return}
     if(t.startsWith("QSX1.")){const x=await verTok(t,"QSX1");if(!x){err.textContent="Código no válido.";return}
@@ -1429,6 +1457,7 @@ async function showStatus(msg,rej){
     ls.set(K_OUT,"");showStatus("¡Listo! Tu acceso está activo.")}}
 // ---- panel admin: solicitudes ----
 function showReqs(){
+  if(SBon())return showReqsLive();
   resetGate();
   const card=el("div",{class:"qs-card"},`<div class="qs-brand">Solicitudes</div><div class="qs-sub">Revisa el pago y aprueba</div>
   <div id="qsKey"></div><div class="qs-lbl">Pega la solicitud del cliente</div><textarea class="qs-ta" id="qsRq" placeholder="QSR1...."></textarea>
@@ -1455,6 +1484,42 @@ function showReqs(){
       det.querySelector("#qsRes").innerHTML=`<div class="qs-lbl">Envíale este código al cliente (${ok?"aprobación":"rechazo"})</div><textarea class="qs-ta" readonly>${esc(tok)}</textarea><button class="qs-btn sec" id="qsCpT">Copiar código</button>`;
       det.querySelector("#qsCpT").onclick=e=>copy(tok,e.target)};
     det.querySelector("#qsOk").onclick=()=>done(true);det.querySelector("#qsNo").onclick=()=>done(false)}}
+
+function showReqsLive(){
+  resetGate();
+  const card=el("div",{class:"qs-card qs-wide"},`<div class="qs-brand">Solicitudes</div><div class="qs-sub" id="qsSubt">Inicia sesión del servidor</div>
+  <div id="qsLg"></div><div id="qsList"></div><div class="qs-err" id="qsErr"></div><a class="qs-link" id="qsBack">Volver al panel</a>`);
+  gate.appendChild(card);const err=card.querySelector("#qsErr"),lg=card.querySelector("#qsLg"),list=card.querySelector("#qsList");
+  card.querySelector("#qsBack").onclick=()=>{SBTOK=null;showAdmin()};
+  const priv=()=>{try{return JSON.parse(ls.get(K_PRIV))}catch(e){return null}};
+  const drawLogin=()=>{lg.innerHTML=`<div class="qs-lbl">Correo del servidor (el que creaste en Supabase)</div><input class="qs-in" id="qsSe" value="${esc(ls.get(K_SBE)||"")}" style="letter-spacing:0;font-family:inherit">
+    <div class="qs-lbl">Contraseña del servidor</div><input class="qs-in" id="qsSp" type="password" style="letter-spacing:0;font-family:inherit">
+    ${priv()?"":'<div class="qs-lbl">Clave de firma (pégala una sola vez)</div><textarea class="qs-ta" id="qsKt" placeholder=\'{"kty":"EC",...}\'></textarea>'}
+    <button class="qs-btn" id="qsSi">Conectar</button>`;
+    lg.querySelector("#qsSi").onclick=async()=>{err.textContent="";
+      try{const kt=lg.querySelector("#qsKt");if(kt){const j=JSON.parse(kt.value);if(!j.d)throw new Error("La clave de firma no es válida.");ls.set(K_PRIV,JSON.stringify(j))}
+        const em=lg.querySelector("#qsSe").value.trim();await sbLogin(em,lg.querySelector("#qsSp").value);ls.set(K_SBE,em);lg.innerHTML="";load()}catch(e){err.textContent="No se pudo conectar: "+e.message}}};
+  let timer=0;
+  const load=async()=>{if(!card.isConnected)return;card.querySelector("#qsSubt").textContent="Revisa el pago y aprueba";
+    try{const rows=await sbf("/rest/v1/requests?select=*&order=created_at.desc&limit=60",{},SBTOK);draw(rows)}catch(e){SBTOK=null;err.textContent="Sesión vencida o sin permiso: "+e.message;drawLogin();return}
+    clearTimeout(timer);timer=setTimeout(load,8000)};
+  const draw=rows=>{
+    const pend=rows.filter(r=>r.status==="pending"),done=rows.filter(r=>r.status!=="pending").slice(0,15);
+    const item=r=>{const P=PLANS[r.plan]||{n:r.plan,usd:"?",dur:""};return `<div class="qs-out" style="text-align:left;margin-top:10px" data-id="${esc(r.id)}">
+      <div>👤 <b>${esc(r.username)}</b> · <b>${P.n}</b> · ${P.usd} USDT · ${P.dur}</div>
+      <div style="word-break:break-all">ID transacción: <b>${esc(r.tx)}</b> <button class="qs-mini" data-cp="${esc(r.tx)}">Copiar</button></div>
+      <div class="small" style="font-size:12px;color:#8b92a5">${fdt(Date.parse(r.created_at))}</div>
+      <div class="qs-row"><button class="qs-btn" data-ok="${esc(r.id)}">Aprobar</button><button class="qs-btn sec" data-no="${esc(r.id)}">Rechazar</button></div></div>`};
+    list.innerHTML=(pend.length?`<div class="qs-lbl">Pendientes (${pend.length})</div>`+pend.map(item).join(""):'<div class="qs-sub">No hay solicitudes pendientes.</div>')+
+      (done.length?'<div class="qs-lbl">Últimas resueltas</div><div class="qs-hist">'+done.map(r=>`<div><b>${esc(r.username)}</b> · ${esc((PLANS[r.plan]||{}).n||r.plan)} · ${r.status==="approved"?"✅":"❌"} · tx ${esc(String(r.tx).slice(0,16))}</div>`).join("")+"</div>":"");
+    list.querySelectorAll("[data-cp]").forEach(b=>b.onclick=e=>copy(b.dataset.cp,e.target));
+    const decide=async(id,ok)=>{const r=rows.find(x=>x.id===id),k=priv();if(!k){err.textContent="Falta la clave de firma.";return}
+      let note=null;if(!ok){note=prompt("Motivo (opcional):","No se pudo verificar el pago.")||"No se pudo verificar el pago."}
+      else if(!confirm("¿Confirmas que verificaste el pago de "+((PLANS[r.plan]||{}).usd)+" USDT con el ID "+r.tx+"?"))return;
+      try{const patch=ok?{status:"approved",token:await signTok("QSL1",{v:1,u:r.username,salt:r.salt,h:r.h,plan:r.plan,dev:r.dev,ts:Date.now()},k),decided_at:new Date().toISOString()}:{status:"rejected",note,decided_at:new Date().toISOString()};
+        await sbf("/rest/v1/requests?id=eq."+encodeURIComponent(id),{method:"PATCH",headers:{Prefer:"return=minimal"},body:patch},SBTOK);load()}catch(e){err.textContent="No se pudo guardar: "+e.message}};
+    list.querySelectorAll("[data-ok]").forEach(b=>b.onclick=()=>decide(b.dataset.ok,true));list.querySelectorAll("[data-no]").forEach(b=>b.onclick=()=>decide(b.dataset.no,false))};
+  if(SBTOK)load();else drawLogin()}
 // ---- planes dentro del bot ----
 function applyPlan(pk){
   const P=PLANS[pk];if(!P||P.pages==="all")return;
