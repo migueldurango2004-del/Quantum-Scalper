@@ -731,6 +731,7 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
           <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
             <button class="btn filter-btn" id="btnNews" style="background:var(--card2); border:1px solid var(--border); color:var(--text);">📰 Noticias: ON</button>
             <button class="btn filter-btn" id="btnDepth" style="background:var(--card2); border:1px solid var(--border); color:var(--text);">📏 Cerca de apertura: ON</button>
+            <button class="btn filter-btn" id="btnMarketGuard" style="background:var(--card2); border:1px solid var(--border); color:var(--text);">🛑 Bloqueo lateral/volátil: OFF</button>
             <button class="btn filter-btn" id="btnLastMin" style="background:var(--card2); border:1px solid var(--border); color:var(--text);">🕐 Último minuto: ON</button>
             <button class="btn filter-btn" id="btnTrendGuard" style="background:var(--card2); border:1px solid var(--border); color:var(--text);">🧭 Salud tendencia: ON</button>
             <button class="btn filter-btn" id="btnLossPause" style="background:var(--card2); border:1px solid var(--border); color:var(--text);">⏸️ Pausa pérdidas: OFF</button>
@@ -797,6 +798,7 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
           <div class="tile"><div class="small muted">Score</div><div class="v" id="mainScore">--/100</div></div>
         </div>
         <div class="calc-box" style="background:var(--card2); border-color:var(--border);">
+          <div id="mktWarn" style="display:none;margin-bottom:10px;padding:9px 12px;border-radius:10px;background:rgba(246,70,93,.12);border:1px solid rgba(246,70,93,.4);color:#ff8a9a;font-size:13px;font-weight:700"></div>
           <h3 id="mainDecision" style="color:var(--accent); font-size:18px; margin-bottom:8px;">Analizando mercado…</h3>
           <div class="muted" id="mainReason" style="font-size:13px; line-height:1.6;">Cargando datos…</div>
           <div id="signalSince" style="display:none;"></div>
@@ -1636,6 +1638,7 @@ const state={
   entryFilter: false,
   trendGuard: localStorage.getItem("trend_guard") !== "false",
   lastMinGuard: localStorage.getItem("last_min_guard") !== "false",
+  marketGuard: localStorage.getItem("market_guard") === "true",
   depthGuard: localStorage.getItem("depth_guard") !== "false",
   advGuard: true,             // indicadores nuevos: siempre activos (sin botón)
   newsGuard: localStorage.getItem("news_guard") !== "false",
@@ -1660,7 +1663,7 @@ function setupToggle(btnId, stateKey, onText, offText, onColor, borderColor) {
   }
   btn.addEventListener("click", () => {
     state[stateKey] = !state[stateKey];
-    localStorage.setItem({safeMode:"safe_mode",macroFilter:"macro_filter",volumeFilter:"volume_filter",closeFilter:"close_filter",lossPause:"loss_pause",sessionFilter:"session_filter",entryFilter:"entry_filter",trendGuard:"trend_guard",lastMinGuard:"last_min_guard",depthGuard:"depth_guard",advGuard:"adv_guard",newsGuard:"news_guard"}[stateKey], state[stateKey]);
+    localStorage.setItem({safeMode:"safe_mode",macroFilter:"macro_filter",volumeFilter:"volume_filter",closeFilter:"close_filter",lossPause:"loss_pause",sessionFilter:"session_filter",entryFilter:"entry_filter",trendGuard:"trend_guard",lastMinGuard:"last_min_guard",marketGuard:"market_guard",depthGuard:"depth_guard",advGuard:"adv_guard",newsGuard:"news_guard"}[stateKey], state[stateKey]);
     update();
   });
   update();
@@ -1670,6 +1673,7 @@ setupToggle("btnTrendGuard", "trendGuard", "🧭 Salud tendencia: ON", "🧭 Sal
 setupToggle("btnNews", "newsGuard", "📰 Noticias: ON", "📰 Noticias: OFF", "rgba(246,70,93,.16)", "var(--red)");
 setupToggle("btnDepth", "depthGuard", "📏 Cerca de apertura: ON", "📏 Cerca de apertura: OFF", "rgba(60,255,60,.15)", "var(--accent)");
 setupToggle("btnLastMin", "lastMinGuard", "🕐 Último minuto: ON", "🕐 Último minuto: OFF", "rgba(250,204,21,.18)", "var(--yellow)");
+setupToggle("btnMarketGuard", "marketGuard", "🛑 Bloqueo lateral/volátil: ON", "🛑 Bloqueo lateral/volátil: OFF", "rgba(246,70,93,.18)", "var(--red)");
 setupToggle("btnLossPause", "lossPause", "⏸️ Pausa pérdidas: ON", "⏸️ Pausa pérdidas: OFF", "rgba(246,70,93,.2)", "var(--red)");
 
 function fmt(v,d=2){return Number.isFinite(v)?v.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d}):"--"}
@@ -2257,13 +2261,17 @@ function decide(){
 
   if(remainingSec<18&&confidence!=="ALTA"){side="NONE";confidence="NO OPERAR"}
 
-  if(regime.id==="CHOPPY"||regime.id==="VOLATILE"){
-    side="NONE";confidence="NO OPERAR";reasons.push(regime.desc);
-  } else if(a5.adx<ADX_TH.block){
-    side="NONE";confidence="NO OPERAR";reasons.push(`Mercado lateral (ADX < ${fmt(ADX_TH.block,1)}). Bloqueado.`);
-  } else if(a5.relAtr>0.40){
-    side="NONE";confidence="NO OPERAR";reasons.push("Volatilidad extrema (ATR > 0.40%). Bloqueado.");
-  }
+  // v8.6: por defecto ya no se bloquea por mercado lateral/volátil: se avisa y la señal sigue (bajo riesgo del usuario).
+  let marketWarn="";
+  {const lat=regime.id==="CHOPPY"||a5.adx<ADX_TH.block,vol=regime.id==="VOLATILE"||a5.relAtr>0.40;
+   if(lat||vol){
+     if(state.marketGuard){
+       if(regime.id==="CHOPPY"||regime.id==="VOLATILE"){side="NONE";confidence="NO OPERAR";reasons.push(regime.desc)}
+       else if(a5.adx<ADX_TH.block){side="NONE";confidence="NO OPERAR";reasons.push(`Mercado lateral (ADX < ${fmt(ADX_TH.block,1)}). Bloqueado.`)}
+       else{side="NONE";confidence="NO OPERAR";reasons.push("Volatilidad extrema (ATR > 0.40%). Bloqueado.")}
+     }else{
+       marketWarn=(lat?"MERCADO LATERAL":"VOLATILIDAD EXTREMA")+": se recomienda no operar. Si tomas la señal es bajo tu riesgo.";
+       reasons.unshift("⚠️ "+marketWarn)}}}
 
   if(remainingSec>285){side="NONE";confidence="NO OPERAR";reasons.push("Esperando que la vela tome forma...");}
 
@@ -2435,7 +2443,7 @@ function decide(){
   if(side==="NONE"){reason=timing+" "+(reasons.length?reasons.slice(0,2).join(". "):"Sin confluencia.")}
   else{reason=`${situation} (${fmtDelta(delta,EPS)}, ${dATR.toFixed(2)} ATR). ${timing} ${reasons.slice(0,3).join(". ")}.`}
 
-  return{ready:true,th,thEffect,entryInfo,entryWait,pendingSide,side,confidence,score:Math.round(score),reason,timing,delta,eps:EPS,dATR,situation,longPts,shortPts,remainingSec,a5,scalpTip,pb,ctx,isRegisterable,signalType,regime,htf,sweetBonus,lastMin,visualOnly,deepNote,newsBlock};
+  return{ready:true,marketWarn,th,thEffect,entryInfo,entryWait,pendingSide,side,confidence,score:Math.round(score),reason,timing,delta,eps:EPS,dATR,situation,longPts,shortPts,remainingSec,a5,scalpTip,pb,ctx,isRegisterable,signalType,regime,htf,sweetBonus,lastMin,visualOnly,deepNote,newsBlock};
 }
 
 function renderEntry(d){
@@ -2525,8 +2533,8 @@ function renderMarketStatus(a5){
     const adx=a5.adx||0,atrRel=a5.relAtr||0;
     const el=$("marketStatus"),ic=$("msIcon"),ti=$("msTitle"),de=$("msDesc");
     if(!el)return;
-    if(adx<ADX_TH.block){el.className="market-status status-danger";ic.textContent="🚫";ti.textContent="NO RECOMENDADO: MERCADO LATERAL";de.textContent="ADX muy bajo ("+fmt(adx)+"). Señales bloqueadas.";}
-    else if(atrRel>0.4){el.className="market-status status-danger";ic.textContent="🌪️";ti.textContent="NO RECOMENDADO: VOLATILIDAD EXTREMA";de.textContent="ATR muy alto ("+fmt(atrRel,3)+"%). Señales bloqueadas.";}
+    if(adx<ADX_TH.block){el.className="market-status status-danger";ic.textContent="🚫";ti.textContent="NO RECOMENDADO: MERCADO LATERAL";de.textContent="ADX muy bajo ("+fmt(adx)+"). "+(state.marketGuard?"Señales bloqueadas.":"Se recomienda no operar; si tomas las señales es bajo tu riesgo.");}
+    else if(atrRel>0.4){el.className="market-status status-danger";ic.textContent="🌪️";ti.textContent="NO RECOMENDADO: VOLATILIDAD EXTREMA";de.textContent="ATR muy alto ("+fmt(atrRel,3)+"%). "+(state.marketGuard?"Señales bloqueadas.":"Se recomienda no operar; si tomas las señales es bajo tu riesgo.");}
     else if(adx>=ADX_TH.trend&&atrRel>=0.08&&atrRel<=0.30){el.className="market-status status-optimal";ic.textContent="🚀";ti.textContent="ENTORNO EXCELENTE: OPERAR";de.textContent="Tendencia fuerte (ADX "+fmt(adx)+") y volatilidad sana (ATR "+fmt(atrRel,3)+"%).";}
     else{el.className="market-status status-normal";ic.textContent="⚖️";ti.textContent="ENTORNO NORMAL: PRECAUCIÓN";de.textContent="Condiciones mixtas. Prioriza señales ALTA o MEDIA.";}
   }catch(e){}
@@ -2674,6 +2682,7 @@ function render(){
   $("mainScore").textContent=d.score+"/100";
   let decisionText=d.entryWait?"⏳ Esperar mejor entrada · "+d.pendingSide+" en vigilancia":d.side==="NONE"?"NO OPERAR · "+d.confidence:d.side==="LONG"?(d.delta<d.eps?"Posible LONG":"Posible CONTINUACIÓN alcista"):(d.delta>-d.eps?"Posible SHORT":"Posible CONTINUACIÓN bajista");
   $("mainDecision").textContent=decisionText;$("mainDecision").className=cls(d.side);
+  {const mw=$("mktWarn");if(mw){const t=d.marketWarn?"⚠️ "+d.marketWarn:"";if(mw.textContent!==t)mw.textContent=t;mw.style.display=t?"block":"none"}}
   $("mainReason").textContent=d.reason;$("timingText").textContent=d.timing;
   $("scalpTip").innerHTML=d.scalpTip;
   $("confBadge").textContent=d.confidence;
@@ -2862,6 +2871,7 @@ function captureFactors(d){
   f["Temporalidad"]="5M";
   try{const mm=macroForSide(d.side),rz=rechazoForSide(d.side);if(mm){f["Macro 4H"]=mm.m4;f["Macro 8H"]=mm.m8;f["Zona macro"]=mm.zona}if(rz)f["Rechazo 5M"]=rz}catch(e){}
   f["Estado del mercado"]=marketStatusLabel();
+  f["Bloqueo mercado"]=state.marketGuard?"ON":"OFF";
   f["Lado"]=d.side;
   try{f["Prob. cruce"]=cmdBucket(cmdProb())}catch(e){}
   try{ // v7.22: racha de velas 5M cerradas (solo dato para validar después)
@@ -3594,8 +3604,9 @@ function decideTF(tf){
   out.lean=side;
   if(side!=="NONE"&&confidence==="NO OPERAR"){reasons.push(`Sesgo ${side==="LONG"?"alcista":"bajista"} pero confluencia insuficiente (${gOk}/6 grupos, ${best} pts, ventaja ${lead}).`);side="NONE"}
   // ---- bloqueos y ajustes ----
-  if(blockMsg&&side!=="NONE"){reasons.unshift(blockMsg);side="NONE";confidence="NO OPERAR"}
-  else if(blockMsg){reasons.unshift(blockMsg)}
+  if(blockMsg&&state.marketGuard&&side!=="NONE"){reasons.unshift(blockMsg);side="NONE";confidence="NO OPERAR"}
+  else if(blockMsg&&state.marketGuard){reasons.unshift(blockMsg)}
+  else if(blockMsg){const w=blockMsg.replace(/ Espero\.| Sin señal\./,"")+" Se recomienda no operar; si tomas la señal es bajo tu riesgo.";reasons.unshift("⚠️ "+w);out.marketWarn=w}
   if(side!=="NONE"&&confidence!=="NO OPERAR"){
     // contra un marco superior fuerte: no se opera; contra uno débil: baja confianza
     if(dU!=="NEUTRAL"&&dU!==side){
@@ -3655,6 +3666,7 @@ function tfFactors(d){
   f["Temporalidad"]=TFS[d.tf].name;
   try{const mm=macroForSide(d.side),rz=rechazoForSide(d.side);if(mm){f["Macro 4H"]=mm.m4;f["Macro 8H"]=mm.m8;f["Zona macro"]=mm.zona}if(rz)f["Rechazo 5M"]=rz}catch(e){}
   f["Estado del mercado"]=marketStatusLabel();
+  f["Bloqueo mercado"]=state.marketGuard?"ON":"OFF";
   f["Lado"]=d.side;f["Confianza"]=d.confidence;
   f["Sesión"]=sessionInfo().session.split(" (")[0];
   f["Régimen TF"]=d.regime?d.regime.name:"—";
