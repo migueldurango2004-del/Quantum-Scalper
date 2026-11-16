@@ -789,7 +789,7 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
         </div>
         <p class="muted small" style="margin-top:8px">Color y monto = precio actual frente a la apertura de cada vela. Es contexto, no un pronóstico de cierre.</p>
       </div>
-      <div class="card span12">
+      <div class="card span12" data-p1="1">
         <div class="row"><h2>Lectura del mercado</h2><span class="badge" id="confBadge">ANALIZANDO</span></div>
         <div class="tiles">
           <div class="tile"><div class="small muted">Situación</div><div class="v" id="bias">--</div></div>
@@ -813,7 +813,7 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
         <div class="row"><h2>Macro 4H · 8H</h2><span class="badge accent">CONTEXTO</span></div>
         <div id="macroBox"><div class="muted small">Cargando velas de 4H y 8H…</div></div>
       </div>
-      <div class="card span12">
+      <div class="card span12" data-p1="1">
         <div class="row"><h2 id="chartTitle">Gráfico 5M · BTC/USDT</h2><span class="badge accent">LONG / SHORT</span></div>
         <div class="tf-switch" id="tfSwitch">
           <button data-tf="1m">1m</button>
@@ -826,7 +826,7 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
         <div class="chart-wrap"><div id="tvChart"></div><div class="chart-legend" id="chartLegend"></div><div id="chartCd" class="chart-cd"><span id="chartCdTf">5M</span><b id="chartCdT">--:--</b><small>cierra vela</small></div></div>
         <div class="layer-chips" id="layerChips"></div>
       </div>
-      <div class="card span6 glow-card" id="bookCard">
+      <div class="card span6 glow-card" id="bookCard" data-p1="1">
         <div class="row"><h2>Libro de órdenes · en vivo</h2><span class="badge live"><span class="pulse-dot"></span> <span id="bookLive">EN VIVO</span></span></div>
         <div class="bk-top">
           <div class="bk-kpi"><span>Mejor BID</span><b class="green" id="bestBid">--</b></div>
@@ -859,7 +859,7 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
         <div class="row"><span class="muted">Estocástico %K</span><strong id="stochK">--</strong></div>
         <div class="row"><span class="muted">Compra agresiva (vela)</span><strong id="tbrVal">--</strong></div>
       </div>
-      <div class="card span6">
+      <div class="card span6" data-p1="1">
         <h2>Presión actual</h2>
         <div class="row"><span>Alcista</span><strong id="bullPct">--%</strong></div>
         <div class="bar"><div class="fill" id="bullBar" style="background:var(--green);width:0"></div></div>
@@ -1121,7 +1121,7 @@ const PAY={id:"874968696",net:"Binance Pay · USDT"};
 // Aviso opcional por Telegram al recibir una solicitud (otro bot, independiente del bot de señales). Déjalo vacío para usar solo copiar/pegar.
 const NOTIFY={token:"",chat:"",tg:""};
 const PLANS={
- p1:{n:"Prueba",usd:2,ms:864e5,dur:"1 día",pages:["resumen"],yes:["Vista General con el Centro de mando","Señal en vivo con precio y cuenta regresiva","Probabilidad de tocar la apertura"],no:["Análisis y pestañas avanzadas","Bitácora Auto","Burbuja flotante"]},
+ p1:{n:"Prueba",usd:2,ms:864e5,dur:"1 día",pages:["resumen"],yes:["Señal en vivo (Lectura del mercado)","Gráfico 5M en vivo","Libro de órdenes y tendencia actual"],no:["Centro de mando y probabilidad","Análisis y pestañas avanzadas","Bitácora y burbuja flotante"]},
  p7:{n:"Pro",usd:15,ms:7*864e5,dur:"7 días",pages:["resumen","tendencia","adv","tf","avisos"],pop:1,yes:["Todo lo de Prueba","Estructura y Flujo · Sesiones","Señales 15M · 1H","Bitácora manual"],no:["Análisis Avanzado y Radar Táctico","Bitácora Auto y mapa de calor"]},
  p30:{n:"Completo",usd:35,ms:30*864e5,dur:"30 días",pages:"all",yes:["Todas las funciones del bot","Análisis Avanzado y Radar Táctico","Bitácora Auto con mapa de calor","Burbuja flotante y modo rápido","Mejoras nuevas incluidas"],no:[]}
 };
@@ -1267,6 +1267,8 @@ function startBot(label,exp,plan){
       const h=Math.floor(left/3600000),d=Math.floor(h/24);pill.textContent="🔑 "+(PLANS[plan]?PLANS[plan].n+" · ":"Acceso: ")+(d>=1?d+" d "+(h%24)+" h":h+" h "+Math.floor(left%3600000/60000)+" min")};
     upd();setInterval(()=>{if(!seenOk())location.reload();upd()},30000)}
   else{const pill=el("div",{id:"qsPill"},"🛠️ Admin");document.body.appendChild(pill)}
+  if(SBon()&&plan&&curUser){const chk=async()=>{try{const rr=await sbLoginInfo(curUser,deviceId()),x=(rr||[])[0];
+      if(!x||!x.same_dev||!x.token){ls.set(K_OUT,"1");ls.set(K_LIC,"");location.reload()}}catch(e){}};setInterval(chk,120000)}
   window.__startBot();}
 let tries=0,lockUntil=0;
 function showPin(){
@@ -1330,7 +1332,7 @@ const jget=k=>{try{return JSON.parse(ls.get(k)||"null")}catch(e){return null}};
 const fdt=ms=>new Date(ms).toLocaleString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
 function loadLic(){const l=jget(K_LIC);return l&&l.tok&&l.act?l:null}
 async function licInfo(){const l=loadLic();if(!l)return null;const pl=await verTok(l.tok,"QSL1");
-  if(!pl||pl.dev!==deviceId()||!PLANS[pl.plan])return null;return{l,pl,exp:l.act+PLANS[pl.plan].ms}}
+  if(!pl||pl.dev!==deviceId()||!PLANS[pl.plan])return null;return{l,pl,exp:(SBon()?pl.ts:l.act)+PLANS[pl.plan].ms}}
 async function notifyAdmin(req,code){
   if(!(NOTIFY.token&&NOTIFY.chat))return;
   try{await fetch("https://api.telegram.org/bot"+NOTIFY.token+"/sendMessage",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -1342,7 +1344,8 @@ async function sbf(path,opt,tokn){const o=opt||{};const r=await fetch(SB.url.rep
   const t=await r.text();return t?JSON.parse(t):null}
 const sbInsert=(row)=>sbf("/rest/v1/requests",{method:"POST",headers:{Prefer:"return=minimal"},body:row});
 const sbStatus=(id,dev)=>sbf("/rest/v1/rpc/my_status",{method:"POST",body:{p_id:id,p_dev:dev}});
-let SBTOK=null;
+let SBTOK=null,curUser="";
+const sbLoginInfo=(u,dev)=>sbf("/rest/v1/rpc/login_info",{method:"POST",body:{p_user:u,p_dev:dev}});
 const sbLogin=async(email,pass)=>{const r=await sbf("/auth/v1/token?grant_type=password",{method:"POST",body:{email,password:pass}});SBTOK=r.access_token;return r};
 const hdr=(sub)=>`<img class="qs-logo" src="${window.QS_LOGO||""}" alt=""><div class="qs-brand">Quantum <b>Scalper</b></div><div class="qs-sub">${sub}</div>`;
 function showLogin(msg){
@@ -1359,12 +1362,20 @@ function showLogin(msg){
     if(!SUB){err.textContent="Tu navegador no permite el acceso seguro. Usa Chrome, Edge, Safari o Firefox actualizado (y abre la página con https).";return}
     if(!seenOk()){err.textContent="La hora de tu dispositivo parece alterada. Corrígela.";return}
     if(Date.now()<lockUntil){err.textContent="Espera "+Math.ceil((lockUntil-Date.now())/1000)+" s para intentar de nuevo.";return}
-    const u=U.value.trim().toLowerCase(),info=await licInfo();
+    const u=U.value.trim().toLowerCase();let info=null;
+    if(SBon()){ // modo servidor: cualquier usuario aprobado puede entrar en este dispositivo, pero solo en uno
+      let rr;try{rr=await sbLoginInfo(u,deviceId())}catch(e){err.textContent="No se pudo conectar con el servidor. Revisa tu internet e intenta de nuevo.";return}
+      const x=(rr||[])[0];
+      if(!x){fail("Usuario o contraseña incorrectos, o el acceso fue eliminado.");return}
+      if(!x.same_dev||!x.token){fail("Este usuario ya está en uso en otro dispositivo. Cada usuario solo puede usarse en un dispositivo.");return}
+      const pl0=await verTok(x.token,"QSL1");if(!pl0||!PLANS[pl0.plan]){fail("Acceso no válido.");return}
+      info={pl:pl0,exp:pl0.ts+PLANS[pl0.plan].ms,l:{tok:x.token,act:pl0.ts}}}
+    else info=await licInfo();
     if(!info||info.pl.u!==u){fail("Usuario o contraseña incorrectos, o este dispositivo no tiene acceso activo. Si ya te aprobaron, usa «Ver estado de mi solicitud» para pegar tu código.");return}
     const h=await pbk(P.value,unb64u(info.pl.salt));
     if(b64u(h)!==info.pl.h){fail("Usuario o contraseña incorrectos.");return}
     if(info.exp<=nowMs()){err.textContent="Tu plan venció. Elige un plan para renovar.";return}
-    tries=0;ls.set(K_OUT,"");startBot("",info.exp,info.pl.plan)};
+    tries=0;ls.set(K_OUT,"");if(SBon())ls.set(K_LIC,JSON.stringify(info.l));curUser=info.pl.u;startBot("",info.exp,info.pl.plan)};
   const fail=m=>{err.textContent=m;P.value="";tries++;if(tries>=5){lockUntil=Date.now()+60000;tries=0}};
   card.querySelector("#qsEnter").onclick=go;P.addEventListener("keydown",e=>{if(e.key==="Enter")go()});
   card.querySelector("#qsPlans").onclick=showPlans;card.querySelector("#qsStatus").onclick=()=>showStatus();
@@ -1408,10 +1419,10 @@ function showRequest(pk){
     const salt=rnd(16),h=await pbk(pw,salt),req={v:1,u,salt:b64u(salt),h:b64u(h),plan:pk,tx,dev:deviceId(),ts:Date.now()},code="QSR1."+jenc(req);
     const id=(crypto.randomUUID?crypto.randomUUID():[...rnd(16)].map(x=>x.toString(16).padStart(2,"0")).join("").replace(/^(.{8})(.{4})(.{4})(.{4})(.{12}).*$/,"$1-$2-$3-$4-$5"));
     if(SBon()){const b=card.querySelector("#qsSend");b.disabled=true;
-      try{await sbInsert({id,username:u,salt:req.salt,h:req.h,plan:pk,tx,dev:req.dev,ts:req.ts})}catch(e){b.disabled=false;err.textContent="No se pudo enviar la solicitud ("+e.message+"). Intenta de nuevo.";return}}
+      try{await sbInsert({id,username:u,salt:req.salt,h:req.h,plan:pk,tx,dev:req.dev,ts:req.ts})}catch(e){b.disabled=false;err.textContent=/duplicate|unique|409/i.test(e.message)?"Ese usuario ya existe. Elige otro nombre de usuario.":"No se pudo enviar la solicitud ("+e.message+"). Intenta de nuevo.";return}}
     ls.set(K_REQ,JSON.stringify({req,code,id,sentAt:Date.now()}));if(!SBon())notifyAdmin(req,code);showStatus()}}
 async function showStatus(msg,rej){
-  resetGate();const R=jget(K_REQ),info=await licInfo();
+  resetGate();const R=jget(K_REQ),info=(SBon()&&R)?null:await licInfo();
   let st="",box="";
   if(info){st=`<span class="qs-st o">ACTIVO</span>`;box=`<div class="qs-sub">Plan ${PLANS[info.pl.plan].n} · vence ${fdt(info.exp)}</div>`}
   else if(rej){st=`<span class="qs-st r">RECHAZADA</span>`;box=`<div class="qs-sub">${esc(rej)}</div>`}
@@ -1431,8 +1442,8 @@ async function showStatus(msg,rej){
     if(R&&!info&&R.id){const poll=async()=>{if(!card.isConnected)return;
         try{const r=(await sbStatus(R.id,deviceId()))||[],x=r[0];
           if(x&&x.status==="approved"&&x.token){const pl=await verTok(x.token,"QSL1");
-            if(pl&&pl.dev===deviceId()&&PLANS[pl.plan]){ls.set(K_LIC,JSON.stringify({tok:x.token,act:nowMs()}));ls.set(K_REQ,"");ls.set(K_OUT,"");
-              startBot("",nowMs()+PLANS[pl.plan].ms,pl.plan);return}}
+            if(pl&&pl.dev===deviceId()&&PLANS[pl.plan]){ls.set(K_LIC,JSON.stringify({tok:x.token,act:pl.ts}));ls.set(K_REQ,"");ls.set(K_OUT,"");curUser=pl.u;
+              startBot("",pl.ts+PLANS[pl.plan].ms,pl.plan);return}}
           else if(x&&x.status==="rejected"){ls.set(K_REQ,"");showStatus("",x.note||"El administrador no pudo verificar tu pago.");return}
         }catch(e){}
         setTimeout(poll,5000)};
@@ -1504,15 +1515,19 @@ function showReqsLive(){
     try{const rows=await sbf("/rest/v1/requests?select=*&order=created_at.desc&limit=60",{},SBTOK);draw(rows)}catch(e){SBTOK=null;err.textContent="Sesión vencida o sin permiso: "+e.message;drawLogin();return}
     clearTimeout(timer);timer=setTimeout(load,8000)};
   const draw=rows=>{
-    const pend=rows.filter(r=>r.status==="pending"),done=rows.filter(r=>r.status!=="pending").slice(0,15);
+    const pend=rows.filter(r=>r.status==="pending"),act=rows.filter(r=>r.status==="approved"),done=rows.filter(r=>r.status==="rejected").slice(0,15);
+    const nowt=Date.now(),actItem=r=>{const P=PLANS[r.plan]||{n:r.plan,ms:0},exp=Date.parse(r.decided_at||r.created_at)+P.ms,left=exp-nowt;
+      return `<div class="qs-out" style="text-align:left;margin-top:8px;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div>👤 <b>${esc(r.username)}</b> · ${P.n}<br><span style="font-size:12px;color:${left>0?"#0ecb81":"#f6465d"}">${left>0?"vence "+fdt(exp):"venció "+fdt(exp)}</span> <span style="font-size:11px;color:#6b7385">· dispositivo ${esc(r.dev)}</span></div><button class="qs-mini" style="color:#f6465d" data-del="${esc(r.id)}" data-u="${esc(r.username)}">🗑 Eliminar acceso</button></div>`};
     const item=r=>{const P=PLANS[r.plan]||{n:r.plan,usd:"?",dur:""};return `<div class="qs-out" style="text-align:left;margin-top:10px" data-id="${esc(r.id)}">
       <div>👤 <b>${esc(r.username)}</b> · <b>${P.n}</b> · ${P.usd} USDT · ${P.dur}</div>
       <div style="word-break:break-all">ID transacción: <b>${esc(r.tx)}</b> <button class="qs-mini" data-cp="${esc(r.tx)}">Copiar</button></div>
       <div class="small" style="font-size:12px;color:#8b92a5">${fdt(Date.parse(r.created_at))}</div>
       <div class="qs-row"><button class="qs-btn" data-ok="${esc(r.id)}">Aprobar</button><button class="qs-btn sec" data-no="${esc(r.id)}">Rechazar</button></div></div>`};
-    list.innerHTML=(pend.length?`<div class="qs-lbl">Pendientes (${pend.length})</div>`+pend.map(item).join(""):'<div class="qs-sub">No hay solicitudes pendientes.</div>')+
+    list.innerHTML=(act.length?`<div class="qs-lbl">Accesos activos (${act.length})</div>`+act.map(actItem).join(""):"")+(pend.length?`<div class="qs-lbl">Pendientes (${pend.length})</div>`+pend.map(item).join(""):'<div class="qs-sub">No hay solicitudes pendientes.</div>')+
       (done.length?'<div class="qs-lbl">Últimas resueltas</div><div class="qs-hist">'+done.map(r=>`<div><b>${esc(r.username)}</b> · ${esc((PLANS[r.plan]||{}).n||r.plan)} · ${r.status==="approved"?"✅":"❌"} · tx ${esc(String(r.tx).slice(0,16))}</div>`).join("")+"</div>":"");
     list.querySelectorAll("[data-cp]").forEach(b=>b.onclick=e=>copy(b.dataset.cp,e.target));
+    list.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{if(!confirm("¿Eliminar el acceso de «"+b.dataset.u+"»? Se quedará sin entrar al bot (máximo 2 min si lo tiene abierto) y podrá volver a solicitar."))return;
+      try{await sbf("/rest/v1/requests?id=eq."+encodeURIComponent(b.dataset.del),{method:"DELETE",headers:{Prefer:"return=minimal"}},SBTOK);load()}catch(e){err.textContent="No se pudo eliminar: "+e.message}});
     const decide=async(id,ok)=>{const r=rows.find(x=>x.id===id),k=priv();if(!k){err.textContent="Falta la clave de firma.";return}
       let note=null;if(!ok){note=prompt("Motivo (opcional):","No se pudo verificar el pago.")||"No se pudo verificar el pago."}
       else if(!confirm("¿Confirmas que verificaste el pago de "+((PLANS[r.plan]||{}).usd)+" USDT con el ID "+r.tx+"?"))return;
@@ -1524,7 +1539,7 @@ function showReqsLive(){
 function applyPlan(pk){
   const P=PLANS[pk];if(!P||P.pages==="all")return;
   const hide=["resumen","tendencia","pro","adv","senales","tf","avisos","auto"].filter(x=>!P.pages.includes(x));
-  const st=el("style",null,hide.map(x=>`.nav button[data-page="${x}"],#page-${x}{display:none!important}`).join("")+"#btnBubble{display:none!important}");
+  const st=el("style",null,hide.map(x=>`.nav button[data-page="${x}"],#page-${x}{display:none!important}`).join("")+"#btnBubble{display:none!important}"+(pk==="p1"?"#page-resumen .grid>.card:not([data-p1]){display:none!important}":""));
   document.head.appendChild(st)}
 function boot(){
   const st=el("style",null,css);document.head.appendChild(st);
@@ -1534,7 +1549,7 @@ function boot(){
   const done=()=>{
     const acc=loadAccess();
     licInfo().then(info=>{
-      if(info&&info.exp>nowMs()&&seenOk()&&!ls.get(K_OUT)){startBot("",info.exp,info.pl.plan);return}
+      if(info&&info.exp>nowMs()&&seenOk()&&!ls.get(K_OUT)){curUser=info.pl.u;startBot("",info.exp,info.pl.plan);return}
       if(acc&&acc.exp>nowMs()&&seenOk()&&!ls.get(K_OUT)){startBot("",acc.exp);return}
       showLogin(info&&info.exp<=nowMs()?"Tu plan venció. Elige un plan para renovar.":(acc&&acc.exp<=nowMs()?"Tu acceso venció. Pide un código nuevo al administrador.":(ls.get(K_OUT)?"Sesión cerrada. Escribe tu usuario y contraseña para volver a entrar.":"")))}).catch(()=>showLogin());
     return;
