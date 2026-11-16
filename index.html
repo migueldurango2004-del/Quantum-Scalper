@@ -3836,6 +3836,7 @@ function autoIngest(){
   });
   return add;
 }
+const autoCierre=a=>{if(a.closePx==null||a.open==null)return null;const d=a.closePx-a.open;if(Math.abs(d)<FLAT_USD)return{c:"Plana",fav:null};const green=d>0;return{c:green?"Verde":"Roja",fav:(a.side==="LONG")===green}};
 function autoRec(a,px){return (a.side==="LONG"?px-a.entry:a.entry-px)/a.depth}   // 1 = volvió a la apertura
 function autoTick(){
   let changed=autoIngest();
@@ -3861,6 +3862,9 @@ function autoTick(){
       if(a.status==="loss")qsToastA(a,"❌ Señal "+a.side+" falló","#f6465d");else if(a.kind==="partial")qsToastA(a,"🟢 Señal "+a.side+" parcial","#ffd700");
     }
   });
+  // v8.5: guardar cómo cerró la vela (verde/roja) también en las señales que ya se habían resuelto antes del cierre
+  state.auto.forEach(a=>{if(a.status!=="pending"&&a.closePx==null&&a.open!=null&&now>=a.end+4000&&now<a.end+15*60000){
+    const cs=state.candles[a.tf]||[];for(let i=cs.length-1;i>=0&&i>=cs.length-4;i--)if(cs[i].t===a.start){a.closePx=cs[i].c;changed=true;break}}});
   if(changed)saveAuto();
   let active=true;try{active=document.getElementById("page-auto").classList.contains("active")}catch(e){}
   if(changed||active)renderAuto();
@@ -3901,6 +3905,7 @@ function renderAuto(){
     else{badge=`<span class="badge">— SIN DATOS</span>`;det=a.reason}
     return `<div class="notice an ${a.status==="win"?(a.kind==="full"?"an-f":"an-p"):a.status==="loss"?"an-l":"an-n"}"><strong class="${cls(a.side)}">${tfn} · ${a.side} · ${a.confidence}</strong> ${badge}
       <div class="muted small" style="margin-top:4px">Entró en ${usd(a.entry)} (${fmt(a.depth)} ${dir} la apertura ${usd(a.open)}) · mejor punto ${usd(a.best)} (${Math.round(Math.max(0,rec)*100)}%)${a.closePx?" · cierre "+usd(a.closePx):""}</div>
+      ${(()=>{const q=autoCierre(a);return q?`<div class="small" style="margin-top:4px">Cierre de la vela: <b style="color:${q.c==="Verde"?"var(--green)":q.c==="Roja"?"var(--red)":"var(--muted)"}">${q.c==="Verde"?"🟢 positiva (verde)":q.c==="Roja"?"🔴 negativa (roja)":"⚪ plana"}</b>${q.fav===null?"":q.fav?" · a favor de la señal":" · en contra de la señal"}</div>`:""})()}
       <div class="small" style="margin-top:4px">${det}</div><div class="time">${new Date(a.emitTime).toLocaleString("es-CO")}</div></div>`}).join("");
   try{let hb=document.getElementById("autoHeatBox");if(!hb){hb=document.createElement("div");hb.id="autoHeatBox";box.parentNode.insertBefore(hb,box.nextSibling)}hb.innerHTML=autoHeatHTML()}catch(e){}
   lst.innerHTML=rows||'<div class="empty">Todavía no hay señales. Aquí aparecen solas, sin que marques nada.</div>';
@@ -3911,8 +3916,8 @@ function exportAutoCSV(){
   const keys=[];res.forEach(a=>a.factors&&Object.keys(a.factors).forEach(k=>{if(!keys.includes(k))keys.push(k)}));
   const esc=v=>{v=v===undefined||v===null?"":String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
   const ex=keys.filter(k=>!["Lado","Confianza","Temporalidad"].includes(k));
-  const head=["fecha","temporalidad","lado","confianza","score","entrada","apertura","profundidad","recuperacion_max_pct","cierre","resultado",...ex];
-  const rows=res.map(a=>[new Date(a.emitTime).toISOString(),a.tf,a.side,a.confidence,a.score,a.entry,a.open,a.depth.toFixed(2),Math.round(Math.max(0,autoRec(a,a.best))*100),a.closePx||"",a.status==="win"?(a.kind==="full"?"SE_DIO":"PARCIAL"):a.status==="loss"?"FALLO":"SIN_DATOS",...ex.map(k=>a.factors?a.factors[k]:"")].map(esc).join(","));
+  const head=["fecha","temporalidad","lado","confianza","score","entrada","apertura","profundidad","recuperacion_max_pct","cierre","cierre_vela","cierre_a_favor","resultado",...ex];
+  const rows=res.map(a=>[new Date(a.emitTime).toISOString(),a.tf,a.side,a.confidence,a.score,a.entry,a.open,a.depth.toFixed(2),Math.round(Math.max(0,autoRec(a,a.best))*100),a.closePx||"",(autoCierre(a)||{}).c||"",(()=>{const q=autoCierre(a);return q&&q.fav!==null?(q.fav?"Sí":"No"):""})(),a.status==="win"?(a.kind==="full"?"SE_DIO":"PARCIAL"):a.status==="loss"?"FALLO":"SIN_DATOS",...ex.map(k=>a.factors?a.factors[k]:"")].map(esc).join(","));
   const blob=new Blob(["﻿"+[head.join(","),...rows].join("\n")],{type:"text/csv;charset=utf-8"});
   const l=document.createElement("a");l.href=URL.createObjectURL(blob);l.download="bitacora_automatica.csv";
   document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(l.href),1000);
