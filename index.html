@@ -692,6 +692,10 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
 .tr-c.dn{border-color:rgba(246,70,93,.45);background:rgba(246,70,93,.08)}.tr-c.dn .a,.tr-c.dn .w{color:#f6465d}
 .tr-c.nt .a,.tr-c.nt .w{color:#8b92a5}
 @media(max-width:700px){.tr-grid{grid-template-columns:repeat(4,1fr)}}
+.rg{position:relative;height:10px;background:rgba(255,255,255,.06);border-radius:6px;margin:10px 0 4px}
+.rg-bar{position:absolute;top:0;bottom:0;border-radius:6px;background:linear-gradient(90deg,rgba(246,70,93,.6),rgba(14,203,129,.6))}
+.rg-open{position:absolute;top:-4px;bottom:-4px;width:2px;background:#fff}
+.rg-ent{position:absolute;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#facc15;border:2px solid #0b0f14}
 </style>
 </head>
 <body>
@@ -1611,13 +1615,16 @@ function layoutV88(){
     ["regimeTile","htfTile"].forEach(i=>{const e=$d(i);if(e)$d("v88Tiles").appendChild(e)});
     if(estado){const hr=estado.querySelector(".row");if(hr){const h2=hr.querySelector("h2");if(h2&&!btns)hr.style.display="";if(hr&&hr.children.length<=1)hr.querySelector("h2").style.margin="0"}}
     // 2) tarjetas que se van a Análisis Avanzado
-    [cardOf("price"),byH2("Vela 5 min"),byH2("Macro 4H"),cardOf("tapeInfo"),byH2("Indicadores 5M"),$d("insCard")].forEach(c=>{if(c)pro.appendChild(c)});
+    [cardOf("price"),byH2("Vela 5 min"),byH2("Macro 4H"),byH2("Indicadores 5M")].forEach(c=>{if(c)pro.appendChild(c)});
     // 3) tendencia por temporalidad
     const tr=document.createElement("div");tr.className="card span12";tr.id="trCard";tr.dataset.p1="1";tr.innerHTML='<div class="row"><h2>Tendencia por temporalidad</h2><span class="small muted" id="trSum">—</span></div><div class="muted small">Dirección de las medias (EMA 9 vs 21) en cada marco; 4H y 8H salen del contexto macro.</div><div class="tr-grid" id="trGrid"></div>';
     // 4) orden: señal → estado → tendencia → qué pasa → (gráfico) → libro → presión → velas en curso
     if(lectura&&estado)res.insertBefore(lectura,estado);
     if(estado)estado.after(tr);else res.appendChild(tr);
-    if(live)tr.after(live);
+    const ins=$d("insCard"),tape=cardOf("tapeInfo"),book=$d("bookCard");
+    if(ins)tr.after(ins);
+    if(live)(ins||tr).after(live);
+    if(tape&&book)book.after(tape);
     if(velas)res.appendChild(velas);
   }catch(e){console.warn("layout",e)}}
 let REQ_INBOT=false;
@@ -3943,6 +3950,12 @@ function autoIngest(){
   });
   return add;
 }
+const autoRange=a=>{ // hasta dónde bajó y subió la vela de la señal respecto a la apertura (sin importar dónde se dio la señal)
+  if(a.open==null)return null;let hi=null,lo=null,src="vela";
+  const cs=state.candles[a.tf]||[];for(let i=cs.length-1;i>=0&&i>=cs.length-6;i--)if(cs[i].t===a.start){hi=cs[i].h;lo=cs[i].l;break}
+  if(hi===null&&a.ch!=null){hi=a.ch;lo=a.cl}
+  if(hi===null){const v=[a.entry,a.best,a.worst,a.open].filter(x=>Number.isFinite(x));if(!v.length)return null;hi=Math.max(...v);lo=Math.min(...v);src="aprox"}
+  return{hi,lo,src}};
 const autoCierre=a=>{if(a.closePx==null||a.open==null)return null;const d=a.closePx-a.open;if(Math.abs(d)<FLAT_USD)return{c:"Plana",fav:null};const green=d>0;return{c:green?"Verde":"Roja",fav:(a.side==="LONG")===green}};
 function autoRec(a,px){return (a.side==="LONG"?px-a.entry:a.entry-px)/a.depth}   // 1 = volvió a la apertura
 function autoTick(){
@@ -3959,7 +3972,7 @@ function autoTick(){
     }
     if(now>=a.end+4000){
       const cs=state.candles[a.tf]||[];let c=null;for(let i=cs.length-1;i>=0&&i>=cs.length-4;i--)if(cs[i].t===a.start){c=cs[i];break}
-      if(c){a.closePx=c.c;
+      if(c){a.closePx=c.c;a.ch=c.h;a.cl=c.l;
         if(isL?c.c>a.open:c.c<a.open){a.status="win";a.kind="full";a.reason="La vela cerró a favor.";changed=true;qsToastA(a,"✅ Señal "+a.side+" se dio","#0ecb81");return}}
       const rec=autoRec(a,a.best),minDepth=a.atr?.1*a.atr:0;
       if(a.depth>=minDepth&&rec>=AUTO_PARTIAL){a.status="win";a.kind="partial";a.reason=`Recuperó ${Math.round(rec*100)}% de lo que estaba en contra: se podía cobrar.`}
@@ -3971,7 +3984,7 @@ function autoTick(){
   });
   // v8.5: guardar cómo cerró la vela (verde/roja) también en las señales que ya se habían resuelto antes del cierre
   state.auto.forEach(a=>{if(a.status!=="pending"&&a.closePx==null&&a.open!=null&&now>=a.end+4000&&now<a.end+15*60000){
-    const cs=state.candles[a.tf]||[];for(let i=cs.length-1;i>=0&&i>=cs.length-4;i--)if(cs[i].t===a.start){a.closePx=cs[i].c;changed=true;break}}});
+    const cs=state.candles[a.tf]||[];for(let i=cs.length-1;i>=0&&i>=cs.length-4;i--)if(cs[i].t===a.start){a.closePx=cs[i].c;a.ch=cs[i].h;a.cl=cs[i].l;changed=true;break}}});
   if(changed)saveAuto();
   let active=true;try{active=document.getElementById("page-auto").classList.contains("active")}catch(e){}
   if(changed||active)renderAuto();
@@ -4012,6 +4025,9 @@ function renderAuto(){
     else{badge=`<span class="badge">— SIN DATOS</span>`;det=a.reason}
     return `<div class="notice an ${a.status==="win"?(a.kind==="full"?"an-f":"an-p"):a.status==="loss"?"an-l":"an-n"}"><strong class="${cls(a.side)}">${tfn} · ${a.side} · ${a.confidence}</strong> ${badge}
       <div class="muted small" style="margin-top:4px">Entró en ${usd(a.entry)} (${fmt(a.depth)} ${dir} la apertura ${usd(a.open)}) · mejor punto ${usd(a.best)} (${Math.round(Math.max(0,rec)*100)}%)${a.closePx?" · cierre "+usd(a.closePx):""}</div>
+      ${(()=>{const g=autoRange(a);if(!g)return"";const dl=g.lo-a.open,dh=g.hi-a.open,mn=Math.min(g.lo,a.open,a.entry),mx=Math.max(g.hi,a.open,a.entry),sp=(mx-mn)||1,ps=v=>((v-mn)/sp*100).toFixed(1),sg=v=>(v>=0?"+":"−")+"$"+fmt(Math.abs(v),1);
+      return `<div class="small" style="margin-top:6px">Movimiento de la vela vs la apertura${g.src==="aprox"?' <span class="muted">(aprox.)</span>':""}: <b style="color:var(--red)">▼ ${sg(dl)}</b> mínimo · <b style="color:var(--green)">▲ ${sg(dh)}</b> máximo · entrada en <b>${sg(a.entry-a.open)}</b></div>
+      <div class="rg" title="Rango de la vela. Línea blanca = apertura · punto amarillo = donde salió la señal"><div class="rg-bar" style="left:${ps(g.lo)}%;width:${(ps(g.hi)-ps(g.lo)).toFixed(1)}%"></div><i class="rg-open" style="left:${ps(a.open)}%"></i><i class="rg-ent" style="left:${ps(a.entry)}%"></i></div>`})()}
       ${(()=>{const q=autoCierre(a);return q?`<div class="small" style="margin-top:4px">Cierre de la vela: <b style="color:${q.c==="Verde"?"var(--green)":q.c==="Roja"?"var(--red)":"var(--muted)"}">${q.c==="Verde"?"🟢 positiva (verde)":q.c==="Roja"?"🔴 negativa (roja)":"⚪ plana"}</b>${q.fav===null?"":q.fav?" · a favor de la señal":" · en contra de la señal"}</div>`:""})()}
       <div class="small" style="margin-top:4px">${det}</div><div class="time">${new Date(a.emitTime).toLocaleString("es-CO")}</div></div>`}).join("");
   try{let hb=document.getElementById("autoHeatBox");if(!hb){hb=document.createElement("div");hb.id="autoHeatBox";box.parentNode.insertBefore(hb,box.nextSibling)}hb.innerHTML=autoHeatHTML()}catch(e){}
@@ -4023,8 +4039,8 @@ function exportAutoCSV(){
   const keys=[];res.forEach(a=>a.factors&&Object.keys(a.factors).forEach(k=>{if(!keys.includes(k))keys.push(k)}));
   const esc=v=>{v=v===undefined||v===null?"":String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
   const ex=keys.filter(k=>!["Lado","Confianza","Temporalidad"].includes(k));
-  const head=["fecha","temporalidad","lado","confianza","score","entrada","apertura","profundidad","recuperacion_max_pct","cierre","cierre_vela","cierre_a_favor","resultado",...ex];
-  const rows=res.map(a=>[new Date(a.emitTime).toISOString(),a.tf,a.side,a.confidence,a.score,a.entry,a.open,a.depth.toFixed(2),Math.round(Math.max(0,autoRec(a,a.best))*100),a.closePx||"",(autoCierre(a)||{}).c||"",(()=>{const q=autoCierre(a);return q&&q.fav!==null?(q.fav?"Sí":"No"):""})(),a.status==="win"?(a.kind==="full"?"SE_DIO":"PARCIAL"):a.status==="loss"?"FALLO":"SIN_DATOS",...ex.map(k=>a.factors?a.factors[k]:"")].map(esc).join(","));
+  const head=["fecha","temporalidad","lado","confianza","score","entrada","apertura","profundidad","recuperacion_max_pct","cierre","cierre_vela","cierre_a_favor","vela_min_vs_apertura","vela_max_vs_apertura","resultado",...ex];
+  const rows=res.map(a=>[new Date(a.emitTime).toISOString(),a.tf,a.side,a.confidence,a.score,a.entry,a.open,a.depth.toFixed(2),Math.round(Math.max(0,autoRec(a,a.best))*100),a.closePx||"",(autoCierre(a)||{}).c||"",(()=>{const q=autoCierre(a);return q&&q.fav!==null?(q.fav?"Sí":"No"):""})(),...(()=>{const g=autoRange(a);return g&&g.src==="vela"?[(g.lo-a.open).toFixed(2),(g.hi-a.open).toFixed(2)]:["",""]})(),a.status==="win"?(a.kind==="full"?"SE_DIO":"PARCIAL"):a.status==="loss"?"FALLO":"SIN_DATOS",...ex.map(k=>a.factors?a.factors[k]:"")].map(esc).join(","));
   const blob=new Blob(["﻿"+[head.join(","),...rows].join("\n")],{type:"text/csv;charset=utf-8"});
   const l=document.createElement("a");l.href=URL.createObjectURL(blob);l.download="bitacora_automatica.csv";
   document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(l.href),1000);
