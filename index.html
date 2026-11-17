@@ -683,6 +683,15 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
 .qs-modal.on{opacity:1}.qs-modal>div{width:100%;max-width:860px;max-height:92vh;overflow:auto;background:#12161e;border:1px solid rgba(60,255,60,.25);border-radius:18px;padding:22px;transform:translateY(14px);transition:transform .3s}
 .qs-modal.on>div{transform:none}
 #qsPill{cursor:pointer}#qsPill.warn{color:#facc15;border-color:#facc15}
+
+/* ===== v8.8: vista general limpia ===== */
+.tr-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:10px}
+.tr-c{text-align:center;padding:10px 4px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06)}
+.tr-c .t{font-size:11px;font-weight:800;letter-spacing:.6px;color:#8b92a5}.tr-c .a{font-size:20px;font-weight:800;line-height:1.3}.tr-c .w{font-size:11px}
+.tr-c.up{border-color:rgba(14,203,129,.45);background:rgba(14,203,129,.08)}.tr-c.up .a,.tr-c.up .w{color:#0ecb81}
+.tr-c.dn{border-color:rgba(246,70,93,.45);background:rgba(246,70,93,.08)}.tr-c.dn .a,.tr-c.dn .w{color:#f6465d}
+.tr-c.nt .a,.tr-c.nt .w{color:#8b92a5}
+@media(max-width:700px){.tr-grid{grid-template-columns:repeat(4,1fr)}}
 </style>
 </head>
 <body>
@@ -1284,14 +1293,14 @@ function startBot(label,exp,plan){
   ls.set(K_OUT,"");
   {const lo=document.getElementById("btnLogout");
    if(lo)lo.onclick=()=>{if(confirm("¿Cerrar sesión?\n\nPara volver a entrar tendrás que escribir de nuevo tu código de acceso (no se consume ni pierdes tiempo).")){ls.set(K_OUT,"1");location.reload()}}}
-  document.documentElement.classList.remove("qs-locked");if(gate)gate.remove();PLAN_NOW.pk=plan||null;PLAN_NOW.exp=exp||0;try{applyPlan(plan)}catch(e){}
+  document.documentElement.classList.remove("qs-locked");if(gate)gate.remove();try{layoutV88()}catch(e){}PLAN_NOW.pk=plan||null;PLAN_NOW.exp=exp||0;try{applyPlan(plan)}catch(e){}
   try{addBg(document.body,null,"qsBgApp")}catch(e){}
   if(exp){const pill=el("div",{id:"qsPill"});document.body.appendChild(pill);
     const upd=()=>{const left=exp-nowMs();if(left<=0){location.reload();return}
       pill.classList.toggle("warn",left<864e5&&!!PLANS[plan]);const h=Math.floor(left/3600000),d=Math.floor(h/24);pill.textContent="🔑 "+(PLANS[plan]?PLANS[plan].n+" · ":"Acceso: ")+(d>=1?d+" d "+(h%24)+" h":h+" h "+Math.floor(left%3600000/60000)+" min")};
     if(PLANS[plan])pill.onclick=()=>openPlanModal();pill.title=PLANS[plan]?"Ver mi plan":"";
     upd();setInterval(()=>{if(!seenOk())location.reload();upd()},30000)}
-  else{const pill=el("div",{id:"qsPill"},"🛠️ Admin");document.body.appendChild(pill)}
+  else{const pill=el("div",{id:"qsPill"},SBon()?"🛠️ Admin · 📥 Solicitudes":"🛠️ Admin");if(SBon()){pill.title="Ver solicitudes de clientes";pill.onclick=openAdminReqs}document.body.appendChild(pill)}
   if(SBon()&&plan&&curUser){const chk=async()=>{try{const rr=await sbLoginInfo(curUser,deviceId()),x=(rr||[])[0];
       if(!x||!x.same_dev||!x.token){ls.set(K_OUT,"1");ls.set(K_LIC,"");location.reload()}}catch(e){}};setInterval(chk,120000)}
   window.__startBot();}
@@ -1526,7 +1535,7 @@ function showReqsLive(){
   const card=el("div",{class:"qs-card qs-wide"},`<div class="qs-brand">Solicitudes</div><div class="qs-sub" id="qsSubt">Inicia sesión del servidor</div>
   <div id="qsLg"></div><div id="qsList"></div><div class="qs-err" id="qsErr"></div><a class="qs-link" id="qsBack">Volver al panel</a>`);
   gate.appendChild(card);const err=card.querySelector("#qsErr"),lg=card.querySelector("#qsLg"),list=card.querySelector("#qsList");
-  card.querySelector("#qsBack").onclick=()=>{SBTOK=null;showAdmin()};
+  card.querySelector("#qsBack").onclick=()=>{if(REQ_INBOT){REQ_INBOT=false;gate.remove();return}SBTOK=null;showAdmin()};
   const priv=()=>{try{return JSON.parse(ls.get(K_PRIV))}catch(e){return null}};
   const drawLogin=()=>{lg.innerHTML=`<div class="qs-lbl">Correo del servidor (el que creaste en Supabase)</div><input class="qs-in" id="qsSe" value="${esc(ls.get(K_SBE)||"")}" style="letter-spacing:0;font-family:inherit">
     <div class="qs-lbl">Contraseña del servidor</div><input class="qs-in" id="qsSp" type="password" style="letter-spacing:0;font-family:inherit">
@@ -1586,6 +1595,36 @@ function lockTabs(pk){
   const nav=document.getElementById("nav");if(!nav)return;
   nav.querySelectorAll("button[data-page]").forEach(b=>{if(!P.pages.includes(b.dataset.page)){b.classList.add("qs-lock");if(!b.dataset.lk){b.dataset.lk="1";b.insertAdjacentHTML("beforeend"," 🔒")}}});
   nav.addEventListener("click",e=>{const b=e.target.closest("button.qs-lock");if(!b)return;e.stopPropagation();e.preventDefault();openPlanModal(b.dataset.page)},true)}
+
+// ---- v8.8 · Vista General limpia + atajo de solicitudes para el admin ----
+function layoutV88(){
+  try{
+    const $d=id=>document.getElementById(id),res=document.querySelector("#page-resumen .grid"),pro=document.querySelector("#page-pro .grid");
+    if(!res||!pro||res.dataset.v88)return;res.dataset.v88="1";
+    const byH2=t=>{const h=[...document.querySelectorAll("#page-resumen .card h2")].find(x=>x.textContent.trim().startsWith(t));return h?h.closest(".card"):null};
+    const cardOf=id=>{const e=$d(id);return e?e.closest(".card"):null};
+    const estado=cardOf("marketStatus"),lectura=cardOf("mainDecision"),live=byH2("Qué está pasando"),velas=byH2("Velas en curso");
+    // 1) filtros/alertas y tiles secundarios del "Estado del Mercado" pasan a Análisis Avanzado
+    const fc=document.createElement("div");fc.className="card span12";fc.innerHTML='<div class="row"><h2>Filtros, alertas y contexto</h2><span class="badge accent">AJUSTES</span></div><div id="v88Btns" style="margin-top:10px"></div><div id="v88Tiles" style="margin-top:12px"></div>';
+    pro.insertBefore(fc,pro.firstChild);
+    const btns=$d("btnNews")&&$d("btnNews").parentElement;if(btns)$d("v88Btns").appendChild(btns);
+    ["regimeTile","htfTile"].forEach(i=>{const e=$d(i);if(e)$d("v88Tiles").appendChild(e)});
+    if(estado){const hr=estado.querySelector(".row");if(hr){const h2=hr.querySelector("h2");if(h2&&!btns)hr.style.display="";if(hr&&hr.children.length<=1)hr.querySelector("h2").style.margin="0"}}
+    // 2) tarjetas que se van a Análisis Avanzado
+    [cardOf("price"),byH2("Vela 5 min"),byH2("Macro 4H"),cardOf("tapeInfo"),byH2("Indicadores 5M"),$d("insCard")].forEach(c=>{if(c)pro.appendChild(c)});
+    // 3) tendencia por temporalidad
+    const tr=document.createElement("div");tr.className="card span12";tr.id="trCard";tr.dataset.p1="1";tr.innerHTML='<div class="row"><h2>Tendencia por temporalidad</h2><span class="small muted" id="trSum">—</span></div><div class="muted small">Dirección de las medias (EMA 9 vs 21) en cada marco; 4H y 8H salen del contexto macro.</div><div class="tr-grid" id="trGrid"></div>';
+    // 4) orden: señal → estado → tendencia → qué pasa → (gráfico) → libro → presión → velas en curso
+    if(lectura&&estado)res.insertBefore(lectura,estado);
+    if(estado)estado.after(tr);else res.appendChild(tr);
+    if(live)tr.after(live);
+    if(velas)res.appendChild(velas);
+  }catch(e){console.warn("layout",e)}}
+let REQ_INBOT=false;
+function openAdminReqs(){
+  if(!SBon()){alert("Primero conecta el servidor (Supabase) en el código.");return}
+  if(!gate||!gate.isConnected){gate=el("div",{id:"qsGate"});document.body.appendChild(gate)}
+  REQ_INBOT=true;showReqsLive()}
 // ---- planes dentro del bot ----
 function applyPlan(pk){
   const P=PLANS[pk];if(!P||P.pages==="all")return;
@@ -4741,6 +4780,22 @@ function sweepsRender(){
     return `<div class="sw-row"><div class="sw-ic ${x.kind}">${hi?"▼":"▲"}</div><div><b>${hi?"Barrida de máximos · rechazo bajista":"Barrida de mínimos · rechazo alcista"}</b><div class="muted small">Nivel ${usd(x.lvl)} · cerró ${usd(x.c)} · mecha $${fmt(x.wick,0)} · ${new Date(x.t).toLocaleString("es-CO",{hour:"2-digit",minute:"2-digit"})}</div></div><div style="text-align:right;font-size:12px">${held===null?"":(held?'<span class="green">se sostuvo</span>':'<span class="red">no se sostuvo</span>')}<div class="muted small">${mv===null?"":(mv>=0?"+":"−")+"$"+fmt(Math.abs(mv),0)+" desde el cierre"}</div></div></div>`}).join(""):'<div class="muted small">Sin barridas en las últimas horas.</div>';
   const l=document.getElementById("sweepList");if(l&&l.dataset.h!==h){l.dataset.h=h;l.innerHTML=h}}
 setInterval(()=>{try{if(document.visibilityState==="visible"){insRender();sweepsRender()}}catch(e){}},1000);
+
+// ===== v8.8 TENDENCIA POR TEMPORALIDAD =====
+function trendRender(){
+  const card=document.getElementById("trCard");if(!card||!card.offsetParent)return;
+  const items=[];
+  [["1m","1M"],["3m","3M"],["5m","5M"],["15m","15M"],["1h","1H"]].forEach(([k,l])=>{const a=state.analysis[k];
+    items.push({l,d:a?dirOf(a):null,adx:a&&Number.isFinite(a.adx)?a.adx:null})});
+  const mv=MAC&&MAC.last;
+  items.push({l:"4H",d:mv&&mv.a4?mv.a4.bias:null,adx:null});items.push({l:"8H",d:mv&&mv.a8?mv.a8.bias:null,adx:null});
+  let up=0,dn=0;
+  const h=items.map(x=>{const cls=x.d==="LONG"?"up":x.d==="SHORT"?"dn":"nt";if(x.d==="LONG")up++;else if(x.d==="SHORT")dn++;
+    const w=x.d==="LONG"?"ALCISTA":x.d==="SHORT"?"BAJISTA":x.d?"NEUTRO":"—";
+    return `<div class="tr-c ${cls}"><div class="t">${x.l}</div><div class="a">${x.d==="LONG"?"▲":x.d==="SHORT"?"▼":"•"}</div><div class="w">${w}</div>${x.adx!==null?`<div class="w" style="color:#6b7385">ADX ${Math.round(x.adx)}</div>`:""}</div>`}).join("");
+  const g=document.getElementById("trGrid");if(g&&g.dataset.h!==h){g.dataset.h=h;g.innerHTML=h}
+  const sm=document.getElementById("trSum"),t=up+" alcistas · "+dn+" bajistas · "+(7-up-dn)+" neutras";if(sm&&sm.textContent!==t)sm.textContent=t}
+setInterval(()=>{try{if(document.visibilityState==="visible")trendRender()}catch(e){}},1000);
 // ===== v7.21 CENTRO DE MANDO =====
 const CMD={pts:[],open:null,last:0,draw:0,lastP:null};
 function qsPhi(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2),p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return x>0?1-p:p}
