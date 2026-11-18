@@ -725,6 +725,30 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
 #ckTrGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 #ckTrGrid .tr-c{padding:6px 2px;border-radius:9px}#ckTrGrid .tr-c .a{font-size:15px;line-height:1.2}#ckTrGrid .tr-c .w{font-size:9.5px}#ckTrGrid .tr-c .t{font-size:10px}
 @media(max-width:900px){.ck-top{grid-template-columns:1fr 1fr}.ck-body{grid-template-columns:1fr}.ck-price,.ck-time{font-size:30px}}
+
+/* ===== v8.12: más diseño (solo transform/opacity) ===== */
+::selection{background:rgba(60,255,60,.28)}
+*{scrollbar-width:thin;scrollbar-color:#2a3344 transparent}
+@keyframes pgIn{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}
+.page.active{animation:pgIn .3s cubic-bezier(.2,.8,.2,1) both}
+.ck{position:relative;overflow:hidden}
+.ck::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#3a4252;transition:background .4s}
+.ck[data-sig="L"]::before{background:#0ecb81}.ck[data-sig="S"]::before{background:#f6465d}
+.ck::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(70% 120% at 0% 50%,var(--fc,#3cff3c),transparent 70%)}
+.ck.flash::after{animation:ckFlash 1.6s ease-out 1}
+@keyframes ckFlash{0%{opacity:.0}12%{opacity:.38}100%{opacity:0}}
+.ck>*{position:relative;z-index:1}
+.ck-mkt{display:inline-block;padding:4px 11px;border-radius:9px;background:rgba(255,255,255,.06)}
+.ck-mkt.g{background:rgba(14,203,129,.14)}.ck-mkt.y{background:rgba(250,204,21,.12)}.ck-mkt.r{background:rgba(246,70,93,.14)}
+.cmd-bar i.hot{animation:barHot .7s ease-in-out infinite alternate}
+@keyframes barHot{from{opacity:1}to{opacity:.35}}
+#stk{position:fixed;left:50%;top:8px;z-index:9500;display:flex;align-items:center;gap:14px;padding:7px 16px;border-radius:99px;background:rgba(12,16,23,.92);border:1px solid rgba(60,255,60,.3);box-shadow:0 8px 28px rgba(0,0,0,.5);font-size:13px;font-weight:700;white-space:nowrap;transform:translate3d(-50%,-160%,0);opacity:0;transition:transform .35s cubic-bezier(.2,1.1,.4,1),opacity .25s;pointer-events:none}
+#stk.on{transform:translate3d(-50%,0,0);opacity:1;pointer-events:auto;cursor:pointer}
+#stk .p{font-variant-numeric:tabular-nums;font-size:15px}#stk .p.up{color:#0ecb81}#stk .p.dn{color:#f6465d}
+#stk .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}#stk .t.hot{color:#facc15}
+#stk .s.L{color:#0ecb81}#stk .s.S{color:#f6465d}#stk .s.N{color:#8b92a5}
+#stk .m{font-size:11px;color:#8b92a5}
+@media(max-width:600px){#stk{gap:9px;padding:6px 12px;font-size:12px}#stk .m{display:none}}
 </style>
 </head>
 <body>
@@ -4884,6 +4908,8 @@ function ckFast(){ // 4 veces por segundo: precio, tiempo, señal y mercado
   const d=BUB&&BUB.d;let cls="N",txt="SIN SEÑAL",sub="Esperando una entrada clara";
   if(d&&d.side==="LONG"){cls="L";txt="LONG · "+d.confidence}else if(d&&d.side==="SHORT"){cls="S";txt="SHORT · "+d.confidence}
   if(d&&d.ready)sub="Score "+d.score+"/100"+(d.side!=="NONE"&&d.depth!==undefined?"":"")+(d.marketWarn?" · ⚠️ bajo tu riesgo":"");
+  try{ckFlash(d&&d.side&&d.side!=="NONE"&&d.confidence!=="NO OPERAR"?d.side:"")}catch(e){}
+  {const hb=$("ckBar");if(hb)hb.classList.toggle("hot",rem<=10000)}
   const se=$("ckSide");if(se.dataset.c!==cls){se.dataset.c=cls;se.className="ck-side "+cls}ckSet(se,txt);ckSet($("ckSub"),sub);
   let lab="—",mc="y";try{lab=marketStatusLabel()}catch(e){}
   mc=/Excelente/.test(lab)?"g":/Lateral|Volatil/.test(lab)?"r":"y";
@@ -4911,6 +4937,29 @@ function ckSlow(){ // 2 veces por segundo: libro, operaciones y tendencia
 }
 setInterval(()=>{try{if(document.visibilityState==="visible")ckFast()}catch(e){}},250);
 setInterval(()=>{try{if(document.visibilityState==="visible")ckSlow()}catch(e){}},500);
+
+// ===== v8.12 BARRA FIJA + DESTELLO =====
+const STK={io:null,last:"",on:false};
+function stkInit(){
+  if(STK.io||!document.getElementById("ckCard"))return;
+  let b=document.getElementById("stk");if(!b){b=document.createElement("div");b.id="stk";b.title="Subir a la cabina";
+    b.innerHTML='<span class="p" id="stkP">--</span><span class="t" id="stkT">--:--</span><span class="s N" id="stkS">—</span><span class="m" id="stkM"></span>';
+    b.onclick=()=>{try{document.querySelector('#nav button[data-page="resumen"]').click()}catch(e){}window.scrollTo({top:0,behavior:"smooth"})};document.body.appendChild(b)}
+  try{STK.io=new IntersectionObserver(es=>{const vis=es[0].isIntersecting;b.classList.toggle("on",!vis)},{threshold:0});STK.io.observe(document.getElementById("ckCard"))}catch(e){}}
+function stkUpdate(){
+  const b=document.getElementById("stk");if(!b||!b.classList.contains("on"))return;
+  const set=(id,t,c)=>{const e=document.getElementById(id);if(!e)return;if(e.textContent!==t)e.textContent=t;if(c!==undefined&&e.dataset.c!==c){e.dataset.c=c}};
+  const px=state.price,op=state.open5m;
+  if(Number.isFinite(px)){set("stkP","$"+px.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}));
+    const e=document.getElementById("stkP"),c=Number.isFinite(op)&&Math.abs(px-op)>=FLAT_USD?(px>op?"up":"dn"):"";const cl="p "+c;if(e.className!==cl)e.className=cl}
+  const t=document.getElementById("ckT");if(t){set("stkT",t.textContent);const hot=t.classList.contains("hot"),el=document.getElementById("stkT"),cl="t"+(hot?" hot":"");if(el.className!==cl)el.className=cl}
+  const sd=document.getElementById("ckSide"),sg=document.getElementById("stkS");if(sd&&sg){set("stkS",sd.textContent);const cl="s "+(sd.dataset.c||"N");if(sg.className!==cl)sg.className=cl}
+  const mk=document.getElementById("ckMkt");if(mk)set("stkM",mk.textContent)}
+function ckFlash(side){
+  const c=document.getElementById("ckCard");if(!c)return;c.dataset.sig=side==="LONG"?"L":side==="SHORT"?"S":"";
+  const key=side||"";if(STK.last===key)return;const was=STK.last;STK.last=key;
+  if(!side||!was&&was!==""&&false)return;if(side){c.style.setProperty("--fc",side==="LONG"?"#0ecb81":"#f6465d");c.classList.remove("flash");void c.offsetWidth;c.classList.add("flash")}}
+setInterval(()=>{try{stkInit();if(document.visibilityState==="visible")stkUpdate()}catch(e){}},250);
 // ===== v7.21 CENTRO DE MANDO =====
 const CMD={pts:[],open:null,last:0,draw:0,lastP:null};
 function qsPhi(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2),p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return x>0?1-p:p}
