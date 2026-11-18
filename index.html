@@ -696,6 +696,8 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
 .rg-bar{position:absolute;top:0;bottom:0;border-radius:6px;background:linear-gradient(90deg,rgba(246,70,93,.6),rgba(14,203,129,.6))}
 .rg-open{position:absolute;top:-4px;bottom:-4px;width:2px;background:#fff}
 .rg-ent{position:absolute;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#facc15;border:2px solid #0b0f14}
+.px-mini{margin-left:auto;margin-right:12px;font-size:12px;font-weight:700;color:#8b92a5;font-variant-numeric:tabular-nums;white-space:nowrap}
+.px-mini b{color:#e8ecf2}.px-mini.up i{color:#0ecb81;font-style:normal}.px-mini.dn i{color:#f6465d;font-style:normal}
 </style>
 </head>
 <body>
@@ -826,7 +828,7 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
         <p class="muted small" style="margin-top:8px">Color y monto = precio actual frente a la apertura de cada vela. Es contexto, no un pronóstico de cierre.</p>
       </div>
       <div class="card span12" data-p1="1">
-        <div class="row"><h2>Lectura del mercado</h2><span class="badge" id="confBadge">ANALIZANDO</span></div>
+        <div class="row"><h2>Lectura del mercado</h2><span class="px-mini" id="pxMini" title="Precio de BTC y movimiento desde la apertura de la vela de 5 min">--</span><span class="badge" id="confBadge">ANALIZANDO</span></div>
         <div class="tiles">
           <div class="tile"><div class="small muted">Situación</div><div class="v" id="bias">--</div></div>
           <div class="tile"><div class="small muted">Confianza</div><div class="v" id="confidence">--</div></div>
@@ -4720,6 +4722,7 @@ function perfInit(){
 }
 // ---- detalles de diseño: precio en cabecera, leyenda de la gráfica y barra deslizante del menú ----
 function uiTick(){
+  try{pxMiniUpdate()}catch(e){}
   try{
     const px=state.price,op=state.open5m,hp=$("hdrPrice");
     if(hp&&Number.isFinite(px)){const up=Number.isFinite(op)?px>=op:true,t=(up?"▲ ":"▼ ")+"$"+px.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -4740,12 +4743,19 @@ function navIndicator(){
 // El stream @ticker solo llega 1 vez por segundo; aggTrade llega con cada operación. El precio ahora sale de aggTrade
 // y se pinta de inmediato (solo texto, 1 vez por frame) sin esperar al render completo.
 const FP={t:0,raf:0,txt:""};
+function pxMiniUpdate(){
+  const e=document.getElementById("pxMini"),px=state.price,op=state.open5m;if(!e||!Number.isFinite(px))return;
+  let t="<b>BTC $"+px.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})+"</b>",cls="px-mini";
+  if(Number.isFinite(op)){const d=px-op,pc=op?d/op*100:0,flat=Math.abs(d)<FLAT_USD;
+    t+=` · <i>${flat?"•":d>0?"▲":"▼"} ${d>=0?"+":"−"}$${Math.abs(d).toFixed(2)} (${pc>=0?"+":"−"}${Math.abs(pc).toFixed(2)}%)</i>`;cls+=flat?"":d>0?" up":" dn"}
+  if(e.dataset.h!==t){e.dataset.h=t;e.innerHTML=t}if(e.className!==cls)e.className=cls}
 function fastPrice(p){
   if(!(p>0))return;
   state.price=p;FP.t=performance.now();
   if(FP.raf)return;
   FP.raf=requestAnimationFrame(()=>{FP.raf=0;
     try{const px=state.price,op=state.open5m,t=usd(px);
+      pxMiniUpdate();
       if(t!==FP.txt){FP.txt=t;
         const a=$("price"),b=$("proPrice");if(a&&a.textContent!==t)a.textContent=t;if(b&&b.textContent!==t)b.textContent=t;
         const hp=$("hdrPrice");if(hp&&Number.isFinite(op)){const up=px>=op,h=(up?"▲ ":"▼ ")+t;if(hp.textContent!==h)hp.textContent=h;
