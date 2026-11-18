@@ -698,6 +698,33 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
 .rg-ent{position:absolute;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#facc15;border:2px solid #0b0f14}
 .px-mini{margin-left:auto;margin-right:12px;font-size:12px;font-weight:700;color:#8b92a5;font-variant-numeric:tabular-nums;white-space:nowrap}
 .px-mini b{color:#e8ecf2}.px-mini.up i{color:#0ecb81;font-style:normal}.px-mini.dn i{color:#f6465d;font-style:normal}
+
+/* ===== v8.11: cabina de operación ===== */
+.ck{border:1px solid rgba(60,255,160,.28);background:linear-gradient(180deg,rgba(60,255,160,.05),transparent 40%),var(--card)}
+.ck-top{display:grid;grid-template-columns:1.35fr 1fr 1.25fr 1fr;gap:14px;align-items:center}
+.ck-l{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:#8b92a5;margin-bottom:2px}
+.ck-price{font-size:36px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.ck-price.up{color:#0ecb81}.ck-price.dn{color:#f6465d}
+.ck-d{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:#8b92a5}.ck-d.up{color:#0ecb81}.ck-d.dn{color:#f6465d}
+.ck-time{font-size:34px;font-weight:800;line-height:1.1;font-family:ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.ck-time.hot{color:#facc15}
+.ck-side{font-size:22px;font-weight:800;line-height:1.15}.ck-side.L{color:#0ecb81}.ck-side.S{color:#f6465d}.ck-side.N{color:#8b92a5}
+.ck-sub{font-size:12px;color:#8b92a5}
+.ck-mkt{font-size:14px;font-weight:800}.ck-mkt.g{color:#0ecb81}.ck-mkt.y{color:#facc15}.ck-mkt.r{color:#f6465d}
+.ck-body{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:12px;margin-top:14px}
+.ck-col{background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;min-width:0}
+.ck-col .ck-l{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px}
+.ck-r{position:relative;display:flex;justify-content:space-between;gap:8px;font-size:12px;line-height:19px;font-family:ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;overflow:hidden;border-radius:3px;padding:0 4px}
+.ck-r i{position:absolute;inset:0;transform-origin:right;transform:scaleX(0);opacity:.22;pointer-events:none}
+.ck-r.a i{background:#f6465d}.ck-r.b i{background:#0ecb81;transform-origin:right}
+.ck-r span{position:relative}.ck-r.a span:nth-of-type(1){color:#f6465d}.ck-r.b span:nth-of-type(1){color:#0ecb81}
+.ck-mid{display:flex;justify-content:space-between;align-items:center;margin:4px 0;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,.06);font-size:12px;font-weight:800}
+.ck-bar{height:6px;border-radius:4px;background:#f6465d;overflow:hidden;margin:4px 0 6px}.ck-bar i{display:block;height:100%;background:#0ecb81;transform-origin:left;transform:scaleX(.5);width:100%}
+.ck-t{display:flex;justify-content:space-between;font-size:12px;line-height:19px;font-family:ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.ck-t .b{color:#0ecb81}.ck-t .s{color:#f6465d}
+#ckTrGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+#ckTrGrid .tr-c{padding:6px 2px;border-radius:9px}#ckTrGrid .tr-c .a{font-size:15px;line-height:1.2}#ckTrGrid .tr-c .w{font-size:9.5px}#ckTrGrid .tr-c .t{font-size:10px}
+@media(max-width:900px){.ck-top{grid-template-columns:1fr 1fr}.ck-body{grid-template-columns:1fr}.ck-price,.ck-time{font-size:30px}}
 </style>
 </head>
 <body>
@@ -746,6 +773,19 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
 
   <section class="page active" id="page-resumen">
     <div class="grid">
+      <div class="card span12 ck" id="ckCard" data-p1="1">
+        <div class="ck-top">
+          <div><div class="ck-l">BTC / USDT</div><div class="ck-price" id="ckPx">--</div><div class="ck-d" id="ckD">--</div></div>
+          <div><div class="ck-l">Cierra la vela 5M en</div><div class="ck-time" id="ckT">--:--</div><div class="cmd-bar"><i id="ckBar"></i></div></div>
+          <div><div class="ck-l">Señal</div><div class="ck-side N" id="ckSide">—</div><div class="ck-sub" id="ckSub">Esperando datos…</div></div>
+          <div><div class="ck-l">Mercado</div><div class="ck-mkt y" id="ckMkt">—</div><div class="ck-sub" id="ckMk2"></div></div>
+        </div>
+        <div class="ck-body">
+          <div class="ck-col" id="ckBook"><div class="ck-l"><span>Libro de órdenes</span><span id="ckImb">—</span></div><div id="ckAsks"></div><div class="ck-mid"><span id="ckMidP">—</span><span class="muted" id="ckSpr" style="font-weight:600">—</span></div><div id="ckBids"></div></div>
+          <div class="ck-col" id="ckTape"><div class="ck-l"><span>Operaciones · 60 s</span><span id="ckTpInfo">—</span></div><div class="ck-bar"><i id="ckTpBar"></i></div><div class="ck-t" style="margin-bottom:6px"><span class="b" id="ckTpB">Compras —</span><span class="s" id="ckTpS">Ventas —</span></div><div id="ckTrades"></div></div>
+          <div class="ck-col" id="ckTrendCol"><div class="ck-l"><span>Tendencia</span><span id="ckTrSum">—</span></div><div id="ckTrGrid"></div><div class="ck-sub" style="margin-top:8px">EMA 9 vs 21 en cada marco. 4H y 8H salen del contexto macro.</div></div>
+        </div>
+      </div>
       <div class="card span12 cmd" id="cmdCard">
         <div class="cmd-g"><div class="cmd-title">Pulso de la señal</div>
           <svg viewBox="0 0 200 120"><defs><linearGradient id="cmdGr" x1="0" x2="1"><stop offset="0" stop-color="#f6465d"/><stop offset=".5" stop-color="#6b7488"/><stop offset="1" stop-color="#0ecb81"/></linearGradient></defs>
@@ -1622,10 +1662,10 @@ function layoutV88(){
     const tr=document.createElement("div");tr.className="card span12";tr.id="trCard";tr.dataset.p1="1";tr.innerHTML='<div class="row"><h2>Tendencia por temporalidad</h2><span class="small muted" id="trSum">—</span></div><div class="muted small">Dirección de las medias (EMA 9 vs 21) en cada marco; 4H y 8H salen del contexto macro.</div><div class="tr-grid" id="trGrid"></div>';
     // 4) orden: señal → estado → tendencia → qué pasa → (gráfico) → libro → presión → velas en curso
     if(lectura&&estado)res.insertBefore(lectura,estado);
-    if(estado)estado.after(tr);else res.appendChild(tr);
+    pro.appendChild(tr);
     const ins=$d("insCard"),tape=cardOf("tapeInfo"),book=$d("bookCard");
-    if(ins)tr.after(ins);
-    if(live)(ins||tr).after(live);
+    if(ins&&estado)estado.after(ins);
+    if(live)(ins||estado||lectura).after(live);
     if(tape&&book)book.after(tape);
     if(velas)res.appendChild(velas);
   }catch(e){console.warn("layout",e)}}
@@ -1639,7 +1679,7 @@ function applyPlan(pk){
   const P=PLANS[pk];if(!P||P.pages==="all")return;
   const hide=["resumen","tendencia","pro","adv","senales","tf","avisos","auto"].filter(x=>!P.pages.includes(x));
   try{lockTabs(pk)}catch(e){}
-  const st=el("style",null,hide.map(x=>`#page-${x}{display:none!important}`).join("")+"#btnBubble{display:none!important}"+(pk==="p1"?"#page-resumen .grid>.card:not([data-p1]){display:none!important}":""));
+  const st=el("style",null,hide.map(x=>`#page-${x}{display:none!important}`).join("")+"#btnBubble{display:none!important}"+(pk==="p1"?"#page-resumen .grid>.card:not([data-p1]){display:none!important}#ckTape{display:none!important}.ck-body{grid-template-columns:1.25fr 1fr!important}":""));
   document.head.appendChild(st)}
 function boot(){
   const st=el("style",null,css);document.head.appendChild(st);
@@ -4748,7 +4788,10 @@ function pxMiniUpdate(){
   let t="<b>BTC $"+px.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})+"</b>",cls="px-mini";
   if(Number.isFinite(op)){const d=px-op,pc=op?d/op*100:0,flat=Math.abs(d)<FLAT_USD;
     t+=` · <i>${flat?"•":d>0?"▲":"▼"} ${d>=0?"+":"−"}$${Math.abs(d).toFixed(2)} (${pc>=0?"+":"−"}${Math.abs(pc).toFixed(2)}%)</i>`;cls+=flat?"":d>0?" up":" dn"}
-  if(e.dataset.h!==t){e.dataset.h=t;e.innerHTML=t}if(e.className!==cls)e.className=cls}
+  if(e.dataset.h!==t){e.dataset.h=t;e.innerHTML=t}if(e.className!==cls)e.className=cls;
+  try{const kp=document.getElementById("ckPx"),kd=document.getElementById("ckD");if(kp){const pt="$"+px.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});if(kp.textContent!==pt)kp.textContent=pt;
+    if(Number.isFinite(op)){const d=px-op,flat=Math.abs(d)<FLAT_USD,c=flat?"":d>0?"up":"dn",dt=(flat?"•":d>0?"▲":"▼")+" "+(d>=0?"+":"−")+"$"+Math.abs(d).toFixed(2)+" ("+(d>=0?"+":"−")+Math.abs(op?d/op*100:0).toFixed(2)+"%) desde la apertura";
+      if(kd.textContent!==dt)kd.textContent=dt;if(kd.dataset.c!==c){kd.dataset.c=c;kd.className="ck-d "+c;kp.className="ck-price "+c}}}}catch(e){}}
 function fastPrice(p){
   if(!(p>0))return;
   state.price=p;FP.t=performance.now();
@@ -4809,7 +4852,7 @@ setInterval(()=>{try{if(document.visibilityState==="visible"){insRender();sweeps
 
 // ===== v8.8 TENDENCIA POR TEMPORALIDAD =====
 function trendRender(){
-  const card=document.getElementById("trCard");if(!card||!card.offsetParent)return;
+  const card=document.getElementById("trCard"),ck=document.getElementById("ckTrGrid");if(!((card&&card.offsetParent)||(ck&&ck.offsetParent)))return;
   const items=[];
   [["1m","1M"],["3m","3M"],["5m","5M"],["15m","15M"],["1h","1H"]].forEach(([k,l])=>{const a=state.analysis[k];
     items.push({l,d:a?dirOf(a):null,adx:a&&Number.isFinite(a.adx)?a.adx:null})});
@@ -4820,8 +4863,54 @@ function trendRender(){
     const w=x.d==="LONG"?"ALCISTA":x.d==="SHORT"?"BAJISTA":x.d?"NEUTRO":"—";
     return `<div class="tr-c ${cls}"><div class="t">${x.l}</div><div class="a">${x.d==="LONG"?"▲":x.d==="SHORT"?"▼":"•"}</div><div class="w">${w}</div>${x.adx!==null?`<div class="w" style="color:#6b7385">ADX ${Math.round(x.adx)}</div>`:""}</div>`}).join("");
   const g=document.getElementById("trGrid");if(g&&g.dataset.h!==h){g.dataset.h=h;g.innerHTML=h}
+  if(ck&&ck.dataset.h!==h){ck.dataset.h=h;ck.innerHTML=h}
+  {const cs=document.getElementById("ckTrSum");if(cs){const t2=up+"▲ "+dn+"▼";if(cs.textContent!==t2)cs.textContent=t2}}
   const sm=document.getElementById("trSum"),t=up+" alcistas · "+dn+" bajistas · "+(7-up-dn)+" neutras";if(sm&&sm.textContent!==t)sm.textContent=t}
 setInterval(()=>{try{if(document.visibilityState==="visible")trendRender()}catch(e){}},1000);
+
+// ===== v8.11 CABINA DE OPERACIÓN =====
+const CK={rows:false,n:0};
+function ckBuild(){
+  if(CK.rows)return;const mk=(id,cls,n)=>{const b=document.getElementById(id);if(!b)return;let h="";for(let i=0;i<n;i++)h+=`<div class="ck-r ${cls}"><i></i><span>--</span><span>--</span></div>`;b.innerHTML=h};
+  mk("ckAsks","a",6);mk("ckBids","b",6);
+  const t=document.getElementById("ckTrades");if(t){let h="";for(let i=0;i<8;i++)h+='<div class="ck-t"><span>--</span><span>--</span><span>--</span></div>';t.innerHTML=h}
+  CK.rows=true}
+function ckSet(e,t){if(e&&e.textContent!==t)e.textContent=t}
+function ckFast(){ // 4 veces por segundo: precio, tiempo, señal y mercado
+  const card=document.getElementById("ckCard");if(!card||!card.offsetParent)return;
+  const now=Date.now()+state.offset,rem=300000-(now%300000),sec=Math.ceil(rem/1000);
+  ckSet($("ckT"),String(Math.floor(sec/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0"));
+  $("ckT").classList.toggle("hot",rem<=60000);$("ckBar").style.transform="scaleX("+((300000-rem)/300000).toFixed(4)+")";
+  const d=BUB&&BUB.d;let cls="N",txt="SIN SEÑAL",sub="Esperando una entrada clara";
+  if(d&&d.side==="LONG"){cls="L";txt="LONG · "+d.confidence}else if(d&&d.side==="SHORT"){cls="S";txt="SHORT · "+d.confidence}
+  if(d&&d.ready)sub="Score "+d.score+"/100"+(d.side!=="NONE"&&d.depth!==undefined?"":"")+(d.marketWarn?" · ⚠️ bajo tu riesgo":"");
+  const se=$("ckSide");if(se.dataset.c!==cls){se.dataset.c=cls;se.className="ck-side "+cls}ckSet(se,txt);ckSet($("ckSub"),sub);
+  let lab="—",mc="y";try{lab=marketStatusLabel()}catch(e){}
+  mc=/Excelente/.test(lab)?"g":/Lateral|Volatil/.test(lab)?"r":"y";
+  const mk=$("ckMkt");ckSet(mk,/Excelente/.test(lab)?"OPERAR":/Lateral/.test(lab)?"LATERAL · NO OPERAR":/Volatil/.test(lab)?"VOLÁTIL · NO OPERAR":/Normal/.test(lab)?"NORMAL · PRECAUCIÓN":lab);
+  if(mk.dataset.c!==mc){mk.dataset.c=mc;mk.className="ck-mkt "+mc}
+  ckSet($("ckMk2"),/Lateral|Volatil/.test(lab)?"Se recomienda no operar":"");
+}
+function ckSlow(){ // 2 veces por segundo: libro, operaciones y tendencia
+  const card=document.getElementById("ckCard");if(!card||!card.offsetParent)return;ckBuild();
+  const A=state.asks||[],B=state.bids||[];
+  if(A.length&&B.length){
+    const asks=A.slice(0,6),bids=B.slice(0,6),mx=Math.max(...asks.map(x=>x[1]),...bids.map(x=>x[1]),1e-9);
+    const ar=document.querySelectorAll("#ckAsks .ck-r"),br=document.querySelectorAll("#ckBids .ck-r");
+    asks.slice().reverse().forEach((x,i)=>{const r=ar[i];if(!r)return;ckSet(r.children[1],fmt(x[0],2));ckSet(r.children[2],fmt(x[1],3));r.firstElementChild.style.transform="scaleX("+Math.min(1,x[1]/mx).toFixed(3)+")"});
+    bids.forEach((x,i)=>{const r=br[i];if(!r)return;ckSet(r.children[1],fmt(x[0],2));ckSet(r.children[2],fmt(x[1],3));r.firstElementChild.style.transform="scaleX("+Math.min(1,x[1]/mx).toFixed(3)+")"});
+    const sb=B.reduce((a,x)=>a+x[1],0),sa=A.reduce((a,x)=>a+x[1],0),im=(sb+sa)?sb/(sb+sa)*100:50;
+    ckSet($("ckImb"),"Compra "+im.toFixed(0)+"% · Venta "+(100-im).toFixed(0)+"%");
+    ckSet($("ckMidP"),"$"+fmt((A[0][0]+B[0][0])/2,2));ckSet($("ckSpr"),"spread $"+fmt(A[0][0]-B[0][0],2))}
+  const tp=(BK&&BK.tape)||[],cut=Date.now()-60000;let b=0,s2=0;tp.forEach(x=>{if(x.t>=cut){if(x.sell)s2+=x.q;else b+=x.q}});
+  const tot=(b+s2)||1;$("ckTpBar").style.transform="scaleX("+(b/tot).toFixed(3)+")";ckSet($("ckTpB"),"Compras "+fmt(b,2));ckSet($("ckTpS"),"Ventas "+fmt(s2,2));ckSet($("ckTpInfo"),tp.length+" ops");
+  const rows=document.querySelectorAll("#ckTrades .ck-t"),last=tp.slice(-8).reverse();
+  rows.forEach((r,i)=>{const x=last[i];if(!x){ckSet(r.children[0],"");ckSet(r.children[1],"");ckSet(r.children[2],"");return}
+    const c=x.sell?"s":"b";if(r.dataset.c!==c){r.dataset.c=c;r.children[1].className=c;r.children[2].className=c}
+    ckSet(r.children[0],new Date(x.t).toLocaleTimeString("es-CO",{hour12:false}));ckSet(r.children[1],fmt(x.p,2));ckSet(r.children[2],fmt(x.q,4))});
+}
+setInterval(()=>{try{if(document.visibilityState==="visible")ckFast()}catch(e){}},250);
+setInterval(()=>{try{if(document.visibilityState==="visible")ckSlow()}catch(e){}},500);
 // ===== v7.21 CENTRO DE MANDO =====
 const CMD={pts:[],open:null,last:0,draw:0,lastP:null};
 function qsPhi(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2),p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return x>0?1-p:p}
