@@ -748,7 +748,25 @@ html.is-scrolling .chart-cd.soon,html.is-scrolling .pulse-dot{animation-play-sta
 #stk .t{font-family:ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}#stk .t.hot{color:#facc15}
 #stk .s.L{color:#0ecb81}#stk .s.S{color:#f6465d}#stk .s.N{color:#8b92a5}
 #stk .m{font-size:11px;color:#8b92a5}
+#stk .x{background:rgba(255,255,255,.08);border:0;color:#aeb6c8;width:22px;height:22px;border-radius:50%;font-size:11px;line-height:22px;padding:0;cursor:pointer;font-weight:800;margin-left:-4px}
+#stk .x:hover{background:rgba(246,70,93,.35);color:#fff}
+#stk.min{padding:4px;gap:0}#stk.min>:not(.x){display:none}#stk.min .x{margin:0;width:30px;height:30px;line-height:30px;font-size:14px}
 @media(max-width:600px){#stk{gap:9px;padding:6px 12px;font-size:12px}#stk .m{display:none}}
+
+/* ===== v8.13: operaciones + detalles ===== */
+#ckTrades .ck-t{padding:0 4px;border-radius:3px;position:relative}
+#ckTrades .ck-t.big{background:rgba(255,255,255,.07);font-weight:800}
+#ckTrades .ck-t.big::before{content:"";position:absolute;left:0;top:3px;bottom:3px;width:2px;border-radius:2px;background:#facc15}
+#ckTrades .ck-t:first-child{animation:tpIn .25s ease-out}
+@keyframes tpIn{from{opacity:.3}to{opacity:1}}
+.ck-l{letter-spacing:.14em}
+.ck-col{transition:transform .25s var(--ease)}
+.ck-col:hover{transform:translate3d(0,-2px,0)}
+.ck-side{text-shadow:0 0 22px currentColor}
+.ck-side.N{text-shadow:none}
+.nav button.active::after{content:"";position:absolute;left:18%;right:18%;bottom:-1px;height:2px;border-radius:2px;background:var(--accent);opacity:.9}
+.nav button{position:relative}
+html.perf #ckTrades .ck-t:first-child,html.perf .ck-col:hover{animation:none;transform:none}
 </style>
 </head>
 <body>
@@ -2636,7 +2654,8 @@ function checkStale(){
   const el=$("staleBanner");
   if(state.dataStale){
     el.style.display="flex";
-    el.innerHTML=`📡 <strong>Precio atrasado</strong>: hace ${Math.round((Date.now()-state.lastMsgMs)/1000)} s que no llegan datos de Binance. Las señales están bloqueadas hasta que vuelva la conexión.`;
+    el.innerHTML=`<span>📡 <strong>Precio atrasado</strong>: hace ${Math.round((Date.now()-state.lastMsgMs)/1000)} s que no llegan datos de Binance. Las señales están bloqueadas hasta que vuelva la conexión. Reconectando solo…</span>`;
+    if(Date.now()-(state.kickAt||0)>8000){state.kickAt=Date.now();try{state.ws&&state.ws.close()}catch(e){}setTimeout(()=>{if(!state.ws||state.ws.readyState>1)connectWS()},1500)}
   }else el.style.display="none";
   if(was&&!state.dataStale)scheduleRender();
 }
@@ -2955,9 +2974,10 @@ function bkFlash(row,kind){
 // ---- operaciones en vivo (aggTrade) ----
 function addTrade(d){
   const q=+d.q,p=+d.p;if(!(q>0))return;
-  const t=+d.T||Date.now();BK.tape.push({t,p,q,sell:!!d.m});
+  const t=+d.T||Date.now();BK.tape.push({t,p,q,sell:!!d.m});BK.lastTrade=Date.now();if(BK.tape.length>4000)BK.tape.splice(0,BK.tape.length-3000);
   const cut=Date.now()-60000;while(BK.tape.length&&BK.tape[0].t<cut)BK.tape.shift();
-  if(BK.tapeRaf)return;BK.tapeRaf=setTimeout(()=>requestAnimationFrame(()=>{BK.tapeRaf=0;try{paintTape()}catch(e){}}),200);
+  if(BK.tapeRaf&&Date.now()-(BK.tapeAt||0)>1500)BK.tapeRaf=0;
+  if(BK.tapeRaf)return;BK.tapeAt=Date.now();BK.tapeRaf=setTimeout(()=>requestAnimationFrame(()=>{BK.tapeRaf=0;try{paintTape()}catch(e){}}),200);
 }
 function paintTape(){
   const el=$("tapeList");if(!el)return;
@@ -4930,11 +4950,28 @@ function ckSlow(){ // 2 veces por segundo: libro, operaciones y tendencia
     ckSet($("ckMidP"),"$"+fmt((A[0][0]+B[0][0])/2,2));ckSet($("ckSpr"),"spread $"+fmt(A[0][0]-B[0][0],2))}
   const tp=(BK&&BK.tape)||[],cut=Date.now()-60000;let b=0,s2=0;tp.forEach(x=>{if(x.t>=cut){if(x.sell)s2+=x.q;else b+=x.q}});
   const tot=(b+s2)||1;$("ckTpBar").style.transform="scaleX("+(b/tot).toFixed(3)+")";ckSet($("ckTpB"),"Compras "+fmt(b,2));ckSet($("ckTpS"),"Ventas "+fmt(s2,2));ckSet($("ckTpInfo"),tp.length+" ops");
-  const rows=document.querySelectorAll("#ckTrades .ck-t"),last=tp.slice(-8).reverse();
-  rows.forEach((r,i)=>{const x=last[i];if(!x){ckSet(r.children[0],"");ckSet(r.children[1],"");ckSet(r.children[2],"");return}
+  let rows=document.querySelectorAll("#ckTrades .ck-t");
+  if(rows.length!==8||document.querySelectorAll("#ckAsks .ck-r").length!==6){CK.rows=false;ckBuild();rows=document.querySelectorAll("#ckTrades .ck-t")}
+  while(tp.length&&tp[0].t<cut-60000)tp.shift();
+  const last=tp.slice(-8).reverse();
+  rows.forEach((r,i)=>{const x=last[i];if(!x){ckSet(r.children[0],i===0?"Esperando operaciones…":"");ckSet(r.children[1],"");ckSet(r.children[2],"");if(r.dataset.c){r.dataset.c="";r.classList.remove("big")}return}
     const c=x.sell?"s":"b";if(r.dataset.c!==c){r.dataset.c=c;r.children[1].className=c;r.children[2].className=c}
+    const bg=x.q>=0.5;if(r.classList.contains("big")!==bg)r.classList.toggle("big",bg);
     ckSet(r.children[0],new Date(x.t).toLocaleTimeString("es-CO",{hour12:false}));ckSet(r.children[1],fmt(x.p,2));ckSet(r.children[2],fmt(x.q,4))});
 }
+function tapeBackfill(){
+  if(BK.bf&&Date.now()-BK.bf<8000)return;BK.bf=Date.now();
+  fetch("https://api.binance.com/api/v3/aggTrades?symbol=BTCUSDT&limit=60").then(r=>r.json()).then(a=>{
+    if(!Array.isArray(a))return;const seen=new Set(BK.tape.map(x=>x.t+"_"+x.q));
+    a.forEach(d=>{const t=+d.T,q=+d.q;if(!(q>0)||seen.has(t+"_"+q)||t<Date.now()-60000)return;BK.tape.push({t,p:+d.p,q,sell:!!d.m})});
+    BK.tape.sort((x,y)=>x.t-y.t);BK.lastTrade=Date.now()}).catch(()=>{})}
+setInterval(()=>{try{
+  if(document.visibilityState!=="visible"||state.stopped)return;
+  const lt=BK.lastTrade||0,age=Date.now()-lt,wsok=state.ws&&state.ws.readyState===1;
+  if(age>4000){tapeBackfill()}
+  if(wsok&&age>12000&&Date.now()-(BK.wsKick||0)>30000){BK.wsKick=Date.now();try{state.ws.close()}catch(e){}}
+}catch(e){}},2000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){try{BK.tapeRaf=0;tapeBackfill()}catch(e){}}});
 setInterval(()=>{try{if(document.visibilityState==="visible")ckFast()}catch(e){}},250);
 setInterval(()=>{try{if(document.visibilityState==="visible")ckSlow()}catch(e){}},500);
 
@@ -4943,8 +4980,12 @@ const STK={io:null,last:"",on:false};
 function stkInit(){
   if(STK.io||!document.getElementById("ckCard"))return;
   let b=document.getElementById("stk");if(!b){b=document.createElement("div");b.id="stk";b.title="Subir a la cabina";
-    b.innerHTML='<span class="p" id="stkP">--</span><span class="t" id="stkT">--:--</span><span class="s N" id="stkS">—</span><span class="m" id="stkM"></span>';
-    b.onclick=()=>{try{document.querySelector('#nav button[data-page="resumen"]').click()}catch(e){}window.scrollTo({top:0,behavior:"smooth"})};document.body.appendChild(b)}
+    b.innerHTML='<span class="p" id="stkP">--</span><span class="t" id="stkT">--:--</span><span class="s N" id="stkS">—</span><span class="m" id="stkM"></span><button class="x" id="stkX" title="Ocultar">✕</button>';
+    try{STK.min=localStorage.getItem("qs_stk_min")==="1"}catch(e){}
+    const apply=()=>{b.classList.toggle("min",!!STK.min);const x=b.querySelector(".x");x.textContent=STK.min?"📌":"✕";x.title=STK.min?"Mostrar barra":"Ocultar";try{localStorage.setItem("qs_stk_min",STK.min?"1":"0")}catch(e){}};
+    apply();
+    b.querySelector(".x").onclick=e=>{e.stopPropagation();STK.min=!STK.min;apply()};
+    b.onclick=()=>{if(STK.min){STK.min=false;apply();return}try{document.querySelector('#nav button[data-page="resumen"]').click()}catch(e){}window.scrollTo({top:0,behavior:"smooth"})};document.body.appendChild(b)}
   try{STK.io=new IntersectionObserver(es=>{const vis=es[0].isIntersecting;b.classList.toggle("on",!vis)},{threshold:0});STK.io.observe(document.getElementById("ckCard"))}catch(e){}}
 function stkUpdate(){
   const b=document.getElementById("stk");if(!b||!b.classList.contains("on"))return;
