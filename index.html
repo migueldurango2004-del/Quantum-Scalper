@@ -2655,7 +2655,7 @@ function checkStale(){
   if(state.dataStale){
     el.style.display="flex";
     el.innerHTML=`<span>📡 <strong>Precio atrasado</strong>: hace ${Math.round((Date.now()-state.lastMsgMs)/1000)} s que no llegan datos de Binance. Las señales están bloqueadas hasta que vuelva la conexión. Reconectando solo…</span>`;
-    if(Date.now()-(state.kickAt||0)>8000){state.kickAt=Date.now();try{state.ws&&state.ws.close()}catch(e){}setTimeout(()=>{if(!state.ws||state.ws.readyState>1)connectWS()},1500)}
+    if((Date.now()-state.lastMsgMs)>12000&&Date.now()-(state.kickAt||0)>15000){state.kickAt=Date.now();wsKick()}
   }else el.style.display="none";
   if(was&&!state.dataStale)scheduleRender();
 }
@@ -2975,7 +2975,7 @@ function bkFlash(row,kind){
 function addTrade(d){
   const q=+d.q,p=+d.p;if(!(q>0))return;
   const t=+d.T||Date.now();BK.tape.push({t,p,q,sell:!!d.m});BK.lastTrade=Date.now();if(BK.tape.length>4000)BK.tape.splice(0,BK.tape.length-3000);
-  const cut=Date.now()-60000;while(BK.tape.length&&BK.tape[0].t<cut)BK.tape.shift();
+  if(Date.now()-(BK.trimAt||0)>400){BK.trimAt=Date.now();const cut=Date.now()-60000;let k=0;while(k<BK.tape.length&&BK.tape[k].t<cut)k++;if(k)BK.tape.splice(0,k)}
   if(BK.tapeRaf&&Date.now()-(BK.tapeAt||0)>1500)BK.tapeRaf=0;
   if(BK.tapeRaf)return;BK.tapeAt=Date.now();BK.tapeRaf=setTimeout(()=>requestAnimationFrame(()=>{BK.tapeRaf=0;try{paintTape()}catch(e){}}),200);
 }
@@ -3494,12 +3494,16 @@ function scheduleRender(){
 
 function connectWS(){
   if(state.stopped)return;
-  try{if(state.ws)state.ws.close()}catch(e){}
+  clearTimeout(wsTimer);wsTimer=0;
+  {const old=state.ws;if(old){old.onopen=old.onmessage=old.onclose=old.onerror=null;try{old.close()}catch(e){}}}
   const streams=["btcusdt@ticker","btcusdt@depth20@100ms","btcusdt@aggTrade","btcusdt@kline_1m","btcusdt@kline_3m","btcusdt@kline_5m","btcusdt@kline_15m","btcusdt@kline_1h","btcusdt@kline_4h","btcusdt@kline_1d"];
-  const url="wss://stream.binance.com:9443/stream?streams="+streams.join("/");
-  try{state.ws=new WebSocket(url)}catch(e){scheduleRetry();return}
-  state.ws.onopen=()=>{state.retry=1200;$("status").textContent="EN VIVO";$("dot").style.background="var(--green)"};
-  state.ws.onmessage=ev=>{
+  const port=((state.wsFail||0)%4>=2)?443:9443;   // si el puerto 9443 falla 2 veces, prueba el 443
+  const url="wss://stream.binance.com:"+port+"/stream?streams="+streams.join("/");
+  let ws;try{ws=new WebSocket(url)}catch(e){scheduleRetry();return}
+  state.ws=ws;
+  ws.onopen=()=>{if(state.ws!==ws)return;state.retry=1200;state.wsFail=0;state.lastMsgMs=Date.now();$("status").textContent="EN VIVO";$("dot").style.background="var(--green)"};
+  ws.onmessage=ev=>{
+    if(state.ws!==ws)return;
     try{
       state.lastMsgMs=Date.now();state.dataStale=false;
       const msg=JSON.parse(ev.data),stream=msg.stream||"",d=msg.data||msg;
@@ -3509,10 +3513,25 @@ function connectWS(){
       else if(d.k&&d.k.i)updateKline(d.k.i,d.k);
     }catch(e){}
   };
-  state.ws.onclose=()=>{if(state.stopped)return;$("status").textContent="RECONECTANDO";$("dot").style.background="var(--yellow)";scheduleRetry()};
-  state.ws.onerror=()=>{try{state.ws.close()}catch(e){}};
+  ws.onclose=ev=>{if(state.ws!==ws||state.stopped)return;
+    console.warn("WS cerrado",ev&&ev.code,ev&&ev.reason);
+    // pequeña espera antes de mostrar "RECONECTANDO": si vuelve en <1,5 s ni se nota
+    setTimeout(()=>{if(state.ws===ws&&ws.readyState!==1&&!state.stopped){$("status").textContent="RECONECTANDO";$("dot").style.background="var(--yellow)"}},1500);
+    scheduleRetry()};
+  ws.onerror=()=>{try{ws.close()}catch(e){}};
 }
-function scheduleRetry(){if(state.stopped)return;setTimeout(connectWS,state.retry);state.retry=Math.min(state.retry*1.6,22000)}
+let wsTimer=0;
+function scheduleRetry(){
+  if(state.stopped||wsTimer)return;               // un solo reintento a la vez (antes se acumulaban y se pisaban)
+  state.wsFail=(state.wsFail||0)+1;
+  wsTimer=setTimeout(()=>{wsTimer=0;connectWS()},state.retry);
+  state.retry=Math.min(state.retry*1.6,22000)}
+function wsKick(){                                 // reinicio controlado y rápido de la conexión
+  state.retry=400;const w=state.ws;
+  if(!w||w.readyState>=2){scheduleRetry();return}
+  try{w.close()}catch(e){scheduleRetry()}}
+window.addEventListener("online",()=>{try{wsKick()}catch(e){}});
+document.addEventListener("visibilitychange",()=>{try{if(document.visibilityState==="visible"&&state.lastMsgMs>0&&Date.now()-state.lastMsgMs>8000)wsKick()}catch(e){}});
 
 function updateChartCd(){
   const el=$("chartCdT");if(!el)return;
@@ -4969,7 +4988,7 @@ setInterval(()=>{try{
   if(document.visibilityState!=="visible"||state.stopped)return;
   const lt=BK.lastTrade||0,age=Date.now()-lt,wsok=state.ws&&state.ws.readyState===1;
   if(age>4000){tapeBackfill()}
-  if(wsok&&age>12000&&Date.now()-(BK.wsKick||0)>30000){BK.wsKick=Date.now();try{state.ws.close()}catch(e){}}
+  if(wsok&&age>25000&&(Date.now()-state.lastMsgMs)>8000&&Date.now()-(BK.wsKick||0)>60000){BK.wsKick=Date.now();wsKick()}
 }catch(e){}},2000);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){try{BK.tapeRaf=0;tapeBackfill()}catch(e){}}});
 setInterval(()=>{try{if(document.visibilityState==="visible")ckFast()}catch(e){}},250);
