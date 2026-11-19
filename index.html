@@ -3018,6 +3018,25 @@ function captureFactors(d){
       f["Racha 5M"]=last==="D"?"Doji":k+(last==="R"?" roja"+(k>1?"s":""):" verde"+(k>1?"s":""));
       f["Últimas 3 5M"]=[cs[n-3],cs[n-2],cs[n-1]].map(col).join("")}
   }catch(e){}
+  try{ // v8.16: la vela previa (fuerza y "desgaste" = cuánto intentó ir en contra sin lograrlo) y cómo va la vela actual. Solo dato para validar después.
+    const cs=(state.candles["5m"]||[]).slice(0,-1),pv=cs[cs.length-1],an5=state.analysis["5m"],px=state.price,op=state.open5m;
+    if(pv&&Number.isFinite(pv.o)&&Number.isFinite(pv.c)){
+      const mv=pv.c-pv.o,dir=Math.abs(mv)<FLAT_USD?"Doji":mv>0?"Verde":"Roja",rng=pv.h-pv.l;
+      f["Vela previa"]=dir;f["Vela previa $"]=mv.toFixed(1);
+      if(an5&&Number.isFinite(an5.atr)&&an5.atr>0){const r=Math.abs(mv)/an5.atr;f["Vela previa tamaño"]=r<0.8?"Chica":r<1.6?"Media":"Grande"}
+      // contra-impulso: mayor retroceso desde el extremo en el sentido de la vela, con las velas de 1m que la forman
+      const m1=(state.candles["1m"]||[]).filter(c=>c.t>=pv.t&&c.t<pv.t+300000);let ctr=null,src="1m";
+      if(dir!=="Doji"){
+        if(m1.length>=3){let ext=dir==="Verde"?-Infinity:Infinity,mx=0;m1.forEach(c=>{if(dir==="Verde"){ext=Math.max(ext,c.h);mx=Math.max(mx,ext-c.l)}else{ext=Math.min(ext,c.l);mx=Math.max(mx,c.h-ext)}});ctr=mx}
+        else{ctr=dir==="Verde"?pv.h-pv.c:pv.c-pv.l;src="aprox"}
+        f["Vela previa contra-impulso $"]=ctr.toFixed(1);
+        const pc=rng>0?ctr/rng:0;f["Vela previa desgaste"]=pc<0.25?"Poco (<25%)":pc<0.5?"Algo (25–50%)":"Mucho (≥50%)";
+        f["Vela previa desgaste %"]=Math.round(pc*100)}
+      if(Number.isFinite(px)&&Number.isFinite(op)){
+        const cur=px-op;f["Mov. vela actual $"]=cur.toFixed(1);
+        if(dir!=="Doji"&&Math.abs(cur)>=FLAT_USD)f["Vela actual vs previa"]=((cur>0)===(dir==="Verde"))?"Misma dirección":"Contraria";
+        if(dir!=="Doji")f["Señal vs vela previa"]=((d.side==="LONG")===(dir==="Verde"))?"Con la vela previa":"Contra la vela previa"}}
+  }catch(e){}
   f["Confianza"]=d.confidence;
   f["Régimen"]=d.regime?(d.regime.id==="SWEET_SPOT"?"Sweet Spot":d.regime.name):"—";
   f["Sesión"]=sessionInfo().session.split(" (")[0];
