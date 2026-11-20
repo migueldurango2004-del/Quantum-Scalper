@@ -2588,14 +2588,18 @@ function renderEntry(d){
 // ==========================================
 // DATOS ATRASADOS: si no llega precio, el bot lo dice y no emite señales.
 // ==========================================
+function forceReconnect(){ // conexión muda: se descarta y se abre otra sin esperar el cierre (en el celular el cierre puede tardar mucho)
+  const old=state.ws;try{if(old){old.onclose=null;old.onmessage=null;old.onerror=null;old.close()}}catch(e){}
+  state.ws=null;state.retry=1200;try{$("status").textContent="RECONECTANDO";$("dot").style.background="var(--yellow)"}catch(e){}connectWS()}
 function checkStale(){
   const was=state.dataStale;
-  state.dataStale=state.lastMsgMs>0&&(Date.now()-state.lastMsgMs)>6000;
+  const grace=Date.now()-(state.visAt||0)<8000||Date.now()-(state.openAt||0)<8000; // al volver de segundo plano o reconectar, dar unos segundos
+  state.dataStale=state.lastMsgMs>0&&(Date.now()-state.lastMsgMs)>6000&&!grace;
   const el=$("staleBanner");
   if(state.dataStale){
     el.style.display="flex";
     el.innerHTML=`<span>📡 <strong>Precio atrasado</strong>: hace ${Math.round((Date.now()-state.lastMsgMs)/1000)} s que no llegan datos de Binance. Las señales están bloqueadas hasta que vuelva la conexión. Reconectando solo…</span>`;
-    if(Date.now()-(state.kickAt||0)>8000){state.kickAt=Date.now();try{state.ws&&state.ws.close()}catch(e){}setTimeout(()=>{if(!state.ws||state.ws.readyState>1)connectWS()},1500)}
+    if(state.ws&&state.ws.readyState===1&&Date.now()-(state.kickAt||0)>25000){state.kickAt=Date.now();forceReconnect()}
   }else el.style.display="none";
   if(was&&!state.dataStale)scheduleRender();
 }
@@ -2948,7 +2952,8 @@ setInterval(()=>{try{
   if(document.visibilityState!=="visible"||state.stopped)return;
   const age=Date.now()-(BK.lastTrade||0),wsok=state.ws&&state.ws.readyState===1;
   if(age>4000)tapeBackfill();
-  if(wsok&&age>12000&&Date.now()-(BK.wsKick||0)>30000){BK.wsKick=Date.now();try{state.ws.close()}catch(e){}}
+  const calm=Date.now()-(state.visAt||0)>20000&&Date.now()-(state.openAt||0)>20000;
+  if(wsok&&calm&&age>20000&&Date.now()-(BK.wsKick||0)>60000){BK.wsKick=Date.now();forceReconnect()}
 }catch(e){}},2000);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){try{BK.tapeRaf=0;tapeBackfill()}catch(e){}}});
 // ---- puntos clave ----
@@ -3471,7 +3476,7 @@ function connectWS(){
   const streams=["btcusdt@ticker","btcusdt@depth20@100ms","btcusdt@aggTrade","btcusdt@kline_1m","btcusdt@kline_3m","btcusdt@kline_5m","btcusdt@kline_15m","btcusdt@kline_1h","btcusdt@kline_4h","btcusdt@kline_1d"];
   const url="wss://stream.binance.com:9443/stream?streams="+streams.join("/");
   try{state.ws=new WebSocket(url)}catch(e){scheduleRetry();return}
-  state.ws.onopen=()=>{state.retry=1200;$("status").textContent="EN VIVO";$("dot").style.background="var(--green)"};
+  state.ws.onopen=()=>{state.retry=1200;state.openAt=Date.now();$("status").textContent="EN VIVO";$("dot").style.background="var(--green)"};
   state.ws.onmessage=ev=>{
     try{
       state.lastMsgMs=Date.now();state.dataStale=false;
@@ -3524,7 +3529,7 @@ document.body.addEventListener("click",()=>{
   }catch(e){}
 },{once:true});
 document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState==="visible"&&state.ws&&state.ws.readyState!==1)connectWS();
+  if(document.visibilityState==="visible"){state.visAt=Date.now();if(!state.ws||state.ws.readyState>1){state.retry=1200;connectWS()}}
   if(document.visibilityState==="visible"){rafPending=false;CH.full=0;try{tick();scheduleRender()}catch(e){}}
 });
 // v7.6 · SEGUNDO PLANO: el navegador frena los temporizadores de las pestañas ocultas (hasta 1 vez por minuto).
