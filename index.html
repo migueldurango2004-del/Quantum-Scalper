@@ -780,7 +780,7 @@ html.tm .page:not(#page-resumen){display:none!important}
       </div>
       <div class="card span12" id="hrCard"><div class="row" style="margin-top:0"><h2 style="margin:0">Horario y sesión</h2><span class="small muted" id="hrSrc"></span></div>
         <div class="hr-g"><div><div class="cmd-title">Esta hora (tu hora local)</div><div class="ins-big" id="hrNow">—</div><div class="cmd-sub" id="hrNowSub"></div></div>
-        <div><div class="cmd-title">Las 24 horas · tu hora</div><div class="hr-bars" id="hrBars"></div><div class="cmd-sub" id="hrBest"></div></div>
+        <div><div class="cmd-title">Las 24 horas · tu hora</div><div class="hr-bars" id="hrBars"></div><div class="cmd-sub" id="hrBest"></div><div class="cmd-sub" id="hrNews" style="margin-top:4px"></div></div>
         <div><div class="cmd-title">Hoy en este dispositivo</div><div class="ins-big" id="hrToday">—</div><div class="cmd-sub" id="hrTodaySub"></div></div></div></div>
       <div class="card span12 ins" id="insCard">
         <div><div class="cmd-title">Próxima apertura de bolsa</div><div class="ins-big" id="insSess">—</div><div class="cmd-sub" id="insSessSub"></div></div>
@@ -4482,11 +4482,8 @@ function drawZones(){
 const ADV={t:0,cvd:null,sess:[],hv:null,lv:[],obst:null,h1At:0,
   fut:{fund:null,nextF:null,mark:null,idx:null,oi:null,oiH:[],liq:[],ws:null,wsOk:false,wsTries:0,lastOk:0,fail:0}};
 // Fechas oficiales (BLS / Fed). Hora en UTC. Se pueden añadir más desde el panel «Flujo · Sesiones».
-const NEWS_BASE=[["2026-12-04T13:30:00Z","NFP · Empleo EE.UU."],["2026-12-09T19:00:00Z","FOMC · Decisión de tasas"],["2026-12-10T13:30:00Z","CPI · Inflación EE.UU."],
-  ["2027-01-08T13:30:00Z","NFP · Empleo EE.UU."],["2027-01-13T13:30:00Z","CPI · Inflación EE.UU."],["2027-01-27T19:00:00Z","FOMC · Decisión de tasas"],
-  ["2027-02-05T13:30:00Z","NFP · Empleo EE.UU."],["2027-02-11T13:30:00Z","CPI · Inflación EE.UU."],["2027-03-05T13:30:00Z","NFP · Empleo EE.UU."],
-  ["2027-03-10T13:30:00Z","CPI · Inflación EE.UU."],["2027-03-17T18:00:00Z","FOMC · Decisión de tasas"],["2027-04-02T12:30:00Z","NFP · Empleo EE.UU."],
-  ["2027-04-13T12:30:00Z","CPI · Inflación EE.UU."],["2027-04-28T18:00:00Z","FOMC · Decisión de tasas"]];
+// Fechas verificadas en bls.gov (NFP, CPI, PPI) y federalreserve.gov (FOMC) el 20-nov-2026; pueden cambiar. Vencimientos de opciones: último viernes del mes, 08:00 UTC.
+const NEWS_BASE=[["2026-11-27T08:00:00Z","Vencimiento de opciones BTC (Deribit)"],["2026-12-04T13:30:00Z","NFP · Empleo EE.UU."],["2026-12-09T19:00:00Z","FOMC · Decisión de tasas"],["2026-12-10T13:30:00Z","CPI · Inflación EE.UU."],["2026-12-15T13:30:00Z","PPI · Precios al productor"],["2026-12-25T08:00:00Z","Vencimiento de opciones BTC (Deribit)"],["2027-01-08T13:30:00Z","NFP · Empleo EE.UU."],["2027-01-13T13:30:00Z","CPI · Inflación EE.UU."],["2027-01-14T13:30:00Z","PPI · Precios al productor"],["2027-01-27T19:00:00Z","FOMC · Decisión de tasas"],["2027-01-29T08:00:00Z","Vencimiento de opciones BTC (Deribit)"],["2027-02-05T13:30:00Z","NFP · Empleo EE.UU."],["2027-02-11T13:30:00Z","CPI · Inflación EE.UU."],["2027-02-12T13:30:00Z","PPI · Precios al productor"],["2027-02-26T08:00:00Z","Vencimiento de opciones BTC (Deribit)"],["2027-03-05T13:30:00Z","NFP · Empleo EE.UU."],["2027-03-10T13:30:00Z","CPI · Inflación EE.UU."],["2027-03-12T13:30:00Z","PPI · Precios al productor"],["2027-03-17T18:00:00Z","FOMC · Decisión de tasas"],["2027-03-26T08:00:00Z","Vencimiento de opciones BTC (Deribit)"],["2027-04-02T12:30:00Z","NFP · Empleo EE.UU."],["2027-04-13T12:30:00Z","CPI · Inflación EE.UU."],["2027-04-14T12:30:00Z","PPI · Precios al productor"],["2027-04-28T18:00:00Z","FOMC · Decisión de tasas"],["2027-04-30T08:00:00Z","Vencimiento de opciones BTC (Deribit)"],["2027-05-07T12:30:00Z","NFP · Empleo EE.UU."],["2027-05-12T12:30:00Z","CPI · Inflación EE.UU."],["2027-05-13T12:30:00Z","PPI · Precios al productor"],["2027-05-28T08:00:00Z","Vencimiento de opciones BTC (Deribit)"],["2027-06-09T18:00:00Z","FOMC · Decisión de tasas"],["2027-06-10T12:30:00Z","CPI · Inflación EE.UU."],["2027-06-25T08:00:00Z","Vencimiento de opciones BTC (Deribit)"],["2027-07-28T18:00:00Z","FOMC · Decisión de tasas"],["2027-09-15T18:00:00Z","FOMC · Decisión de tasas"],["2027-10-27T18:00:00Z","FOMC · Decisión de tasas"],["2027-11-17T19:00:00Z","FOMC · Decisión de tasas"]];
 const NEWS_BEFORE=15*60000,NEWS_AFTER=15*60000,NEWS_AFTER_FOMC=30*60000;
 function newsCustom(){const out=[];let txt="";try{txt=localStorage.getItem("news_custom_v716")||""}catch(e){}
   txt.split(/\n/).forEach(l=>{const m=l.trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})\s*(.*)$/);if(!m)return;
@@ -4612,6 +4609,7 @@ function advFactors(){
     const x=A.fx;f["Funding"]=!x.ok||x.fund===null?"—":x.fund>=.0003?"Alto (+)":x.fund<=-.0001?"Negativo":"Normal";
     f["OI 15m"]=!x.ok||x.dOI===null?"—":x.dOI>.15?"Sube":x.dOI<-.15?"Baja":"Estable";
     f["Liquidaciones 5m"]=!x.wsOk?"—":(x.liqL+x.liqS)<1e6?"Pocas":x.liqL>x.liqS*1.5?"Longs liquidados":x.liqS>x.liqL*1.5?"Shorts liquidados":"Mixtas";
+    try{if(cv&&Number.isFinite(cv.p15))f["CVD 15m %"]=(cv.p15*100).toFixed(1);if(x.ok&&x.fund!==null)f["Funding %"]=(x.fund*100).toFixed(4);if(x.ok&&x.dOI!==null)f["OI Δ15m %"]=x.dOI.toFixed(3);if(x.wsOk)f["Liquidaciones 5m $"]=Math.round(x.liqL+x.liqS);if(x.wsOk&&x.basis!==null&&x.basis!==undefined)f["Base futuros $"]=x.basis.toFixed(2)}catch(e){}
     f["Nivel cercano"]=A.near?A.near.label:"No";f["Obstáculo al cruce"]=A.obst&&A.obst.level?A.obst.level.label:"No";
     f["Volatilidad de la hora"]=A.hr?A.hr.label:"—";
   }catch(e){}
@@ -4979,7 +4977,7 @@ function autoHeatHTML(){
 
 
 // ===== v8.15 HORARIO Y SESIÓN (historial embebido, por hora UTC) =====
-const HR_DATA=[[62, 50], [66, 58], [62, 51], [55, 51], [57, 42], [21, 14], [11, 9], [6, 5], [0, 0], [0, 0], [0, 0], [8, 8], [35, 29], [72, 55], [84, 68], [76, 67], [74, 58], [64, 44], [48, 34], [51, 39], [63, 50], [85, 72], [76, 55], [65, 50]],HR_TOT=1141,HR_HITS=909,HR_SRC="9–19 nov 2026";
+const HR_DATA=[[68, 55], [76, 66], [68, 57], [57, 53], [57, 42], [21, 14], [11, 9], [6, 5], [0, 0], [0, 0], [0, 0], [8, 8], [42, 35], [84, 65], [100, 84], [96, 85], [92, 74], [73, 52], [55, 38], [56, 44], [74, 61], [98, 83], [84, 61], [69, 53]],HR_TOT=1295,HR_HITS=1044,HR_SRC="9–20 nov 2026";
 function hrClass(h){const [n,k]=HR_DATA[h],g=HR_HITS/HR_TOT,sm=(k+20*g)/(n+20);
   if(n<25)return{c:"na",t:"Pocos datos",e:"❔",r:n?Math.round(k/n*100):null,n};
   if(sm>=g+0.03)return{c:"good",t:"Suele ir bien",e:"✅",r:Math.round(k/n*100),n};
@@ -4999,6 +4997,10 @@ function hrRender(){
   let ord=[];for(let L=0;L<24;L++){const u=((L-Math.round(offH))%24+24)%24;const c=hrClass(u);ord.push(`<i class="hr-b hr-${c.c}${L===lh?" cur":""}" style="height:${c.r==null?8:Math.max(8,Math.min(100,(c.r-50)*2))}%" title="${fmtH(L)}: ${c.r==null?"sin datos":c.r+"% (n="+c.n+")"}"></i>`)}
   E("hrBars",ord.join(""));
   const best=[];for(let L=0;L<24;L++){const u=((L-Math.round(offH))%24+24)%24,c=hrClass(u);if(c.c==="good")best.push(fmtH(L))}
+  try{const nw=newsNow(Date.now()+state.offset);let t="";
+    if(nw.active){const m=Math.round((nw.active.t-(Date.now()+state.offset))/60000);t="📰 Noticia en curso: "+nw.active.n+(m>0?" (en "+m+" min)":" (hace "+Math.abs(m)+" min)")+" · el bot espera"}
+    else if(nw.next){const m=Math.round((nw.next.t-(Date.now()+state.offset))/60000),d=Math.floor(m/1440),h=Math.floor(m%1440/60);t="📰 Próxima: "+nw.next.n+" · "+(d>0?"en "+d+" d "+h+" h":h>0?"en "+h+" h "+(m%60)+" min":"en "+m+" min")}
+    E("hrNews",t)}catch(e){}
   E("hrBest",best.length?"Mejores horas: "+best.join(" · "):"Sin horas destacadas todavía");
   E("hrSrc","Historial "+HR_SRC+" · "+HR_TOT+" señales");
   // hoy
