@@ -718,6 +718,28 @@ html.tm .page:not(#page-resumen){display:none!important}
 #tmExit{position:fixed;right:12px;top:12px;z-index:9900;background:rgba(12,16,23,.92);border:1px solid rgba(255,255,255,.2);color:#e8ecf2;border-radius:99px;padding:6px 14px;font-size:12px;cursor:pointer}
 @media(max-width:720px){.nav{scroll-snap-type:x proximity;mask-image:linear-gradient(90deg,#000 88%,transparent)}.nav button{flex:0 0 auto;scroll-snap-align:start;white-space:nowrap}}
 .calc-cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px}.calc-cfg label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}.calc-cfg input{background:var(--card2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:8px;font-size:14px}
+
+/* ===== v8.20: análisis automático en el gráfico (solo transform/opacity) ===== */
+.ai-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:4;display:none}
+.ai-layer.on{display:block}
+.ai-e{position:absolute;left:0;top:0;opacity:0;transition:opacity .35s;will-change:transform;transform-origin:0 0}
+.ai-e.on{opacity:1}
+.ai-z{border-radius:3px}
+.ai-z.sup{background:rgba(246,70,93,.13);border-top:1px solid rgba(246,70,93,.55);border-bottom:1px solid rgba(246,70,93,.25)}
+.ai-z.dem{background:rgba(14,203,129,.13);border-top:1px solid rgba(14,203,129,.25);border-bottom:1px solid rgba(14,203,129,.55)}
+.ai-z b{position:absolute;right:6px;font-size:10px;font-weight:700;letter-spacing:.02em;white-space:nowrap;text-shadow:0 1px 2px #000}
+.ai-z.sup b{top:2px;color:#ff8a9a}.ai-z.dem b{bottom:2px;color:#5ee0aa}
+.ai-l{height:0;border-top:2px dashed rgba(56,189,248,.9)}
+.ai-t{height:0;border-top:2px solid rgba(56,189,248,.85)}
+.ai-p{height:0;border-top:2px dashed #facc15}
+.ai-o{height:0;border-top:1px dashed rgba(255,255,255,.55)}
+.ai-band{background:rgba(120,140,255,.07);border-top:1px dotted rgba(140,160,255,.5);border-bottom:1px dotted rgba(140,160,255,.5)}
+.ai-tag{font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(8,12,16,.82);white-space:nowrap}
+.ai-box{position:absolute;left:10px;bottom:34px;max-width:min(58%,360px);padding:8px 10px;border-radius:10px;background:rgba(8,12,16,.86);border:1px solid rgba(56,189,248,.35);font-size:11px;line-height:1.45;color:#d7dce6;pointer-events:none;display:none}
+.ai-layer.on .ai-box{display:block}
+.ai-box b.u{color:#0ecb81}.ai-box b.d{color:#f6465d}.ai-box b.m{color:#facc15}
+.ai-box small{display:block;margin-top:3px;color:#8b92a5;font-size:9.5px}
+html.perf .ai-e{transition:none}
 </style>
 </head>
 <body>
@@ -3289,13 +3311,14 @@ function cleanupExpiredSignals(){
 let tvChart,candleSeries,ema9Series,ema21Series,rsiSeries,vwapSeries,macdHistSeries;
 let supportLine=null,resistanceLine=null;
 // v7.8 · capas del gráfico (por defecto solo lo esencial: velas, flechas, EMA 9/21 y contador)
-const LAYER_DEF=[["ema","EMA 9/21","#facc15"],["vwap","VWAP","#f97316"],["rsi","RSI","#a855f7"],["macd","MACD","#26a69a"],["sr","Soporte / Resist.","#0ecb81"],["prev","Máx/Mín de ayer","#e0b400"],["walls","Muros","#c084fc"],["sess","Sesiones","#7dd3fc"],["rnd","Redondos","#8b92a5"],["auto","Señales auto","#3cff3c"]];
-const LAYERS=(function(){const d={ema:true,vwap:false,rsi:false,macd:false,sr:false,prev:false,walls:false,sess:false,rnd:false,auto:true};
+const LAYER_DEF=[["ema","EMA 9/21","#facc15"],["vwap","VWAP","#f97316"],["rsi","RSI","#a855f7"],["macd","MACD","#26a69a"],["sr","Soporte / Resist.","#0ecb81"],["prev","Máx/Mín de ayer","#e0b400"],["walls","Muros","#c084fc"],["sess","Sesiones","#7dd3fc"],["rnd","Redondos","#8b92a5"],["auto","Señales auto","#3cff3c"],["ai","🧠 Análisis auto","#38bdf8"]];
+const LAYERS=(function(){const d={ema:true,vwap:false,rsi:false,macd:false,sr:false,prev:false,walls:false,sess:false,rnd:false,auto:true,ai:false};
   try{const v=JSON.parse(localStorage.getItem("chart_layers_v78")||"null");if(v)Object.keys(d).forEach(k=>{if(typeof v[k]==="boolean")d[k]=v[k]})}catch(e){}return d})();
 function applyLayers(){
   const vis=(sr,on)=>{try{if(sr)sr.applyOptions({visible:!!on})}catch(e){}};
   vis(ema9Series,LAYERS.ema);vis(ema21Series,LAYERS.ema);vis(vwapSeries,LAYERS.vwap);vis(rsiSeries,LAYERS.rsi);vis(macdHistSeries,LAYERS.macd);
   document.querySelectorAll("#layerChips button").forEach(b=>b.classList.toggle("on",!!LAYERS[b.dataset.layer]));
+  try{aiKick()}catch(e){}
 }
 function initLayerChips(){
   const box=$("layerChips");if(!box)return;
@@ -4975,6 +4998,103 @@ function autoHeatHTML(){
   return`<div class="card span12" id="autoHeat" style="margin-top:14px"><h2 style="margin:0">🔥 Acierto por hora (tu hora local)</h2><div class="muted small">Verde ≥75% · amarillo 60–75% · rojo &lt;60%. Con menos de 5 señales no se colorea.</div><div class="heat">${Array.from({length:24},(_,h)=>cell(h)).join("")}</div></div>`;
 }
 
+
+
+// ===== v8.20 ANÁLISIS AUTOMÁTICO EN EL GRÁFICO (orientativo; se activa con el chip «🧠 Análisis auto») =====
+const AI={layer:null,E:{},piv:null,pivAt:0,raf:0,sum:null,boxKey:""};
+function aiPivots(){
+  const cs=(state.candles["15m"]||[]).slice(-180),hi=[],lo=[];
+  for(let i=3;i<cs.length-3;i++){const c=cs[i];let H=true,L=true;
+    for(let k=1;k<=3;k++){if(cs[i-k].h>=c.h||cs[i+k].h>c.h)H=false;if(cs[i-k].l<=c.l||cs[i+k].l<c.l)L=false}
+    if(H)hi.push({t:c.t,p:c.h});if(L)lo.push({t:c.t,p:c.l})}
+  return{hi,lo}}
+function aiCompute(){
+  const px=state.price,a5=state.analysis["5m"];if(!Number.isFinite(px)||!a5)return null;
+  const atr5=a5.atr||40,atr15=(state.analysis["15m"]&&state.analysis["15m"].atr)||atr5*1.7;
+  if(!AI.piv||Date.now()-AI.pivAt>20000){AI.piv=aiPivots();AI.pivAt=Date.now()}
+  // sesgo por temporalidades (igual que el panel de tendencia)
+  let up=0,dn=0,n=0;
+  [["1m"],["3m"],["5m"],["15m"],["1h"]].forEach(([k])=>{const a=state.analysis[k];if(!a)return;const d=dirOf(a);n++;if(d==="LONG")up++;else if(d==="SHORT")dn++});
+  const mv=MAC&&MAC.last;if(mv){[mv.a4,mv.a8].forEach(a=>{if(!a)return;n++;if(a.bias==="LONG")up++;else if(a.bias==="SHORT")dn++})}
+  const bias=up>=dn+2?"U":dn>=up+2?"D":"M";
+  // zonas (clusters de pivotes de 15m)
+  const tol=Math.max(atr15*0.5,px*0.0004),all=AI.piv.hi.concat(AI.piv.lo).sort((a,b)=>a.p-b.p),zs=[];
+  all.forEach(x=>{const g=zs[zs.length-1];if(g&&x.p-g.hi<=tol){g.hi=x.p;g.n++;g.sum+=x.p;g.last=Math.max(g.last,x.t)}else zs.push({lo:x.p,hi:x.p,n:1,sum:x.p,last:x.t})});
+  const th=Math.max(atr5*0.35,1),fix=z=>{const m=z.sum/z.n;return{lo:Math.min(z.lo,m-th/2),hi:Math.max(z.hi,m+th/2),mid:m,n:z.n}};
+  const pick=(arr)=>{const g=arr.filter(z=>z.n>=2);return fix((g.length?g:arr)[0])};
+  const above=zs.filter(z=>z.lo>px+atr5*0.2).sort((a,b)=>a.lo-b.lo),below=zs.filter(z=>z.hi<px-atr5*0.2).sort((a,b)=>b.hi-a.hi);
+  const sup=above.length?pick(above):null,dem=below.length?pick(below):null;
+  // línea de tendencia: dos últimos mínimos crecientes (sesgo alcista) o dos máximos decrecientes (bajista)
+  let tl=null;
+  if(bias==="U"&&AI.piv.lo.length>=2){const a=AI.piv.lo[AI.piv.lo.length-2],b=AI.piv.lo[AI.piv.lo.length-1];if(b.p>a.p&&b.t-a.t>=2700000)tl={a,b}}
+  if(bias==="D"&&AI.piv.hi.length>=2){const a=AI.piv.hi[AI.piv.hi.length-2],b=AI.piv.hi[AI.piv.hi.length-1];if(b.p<a.p&&b.t-a.t>=2700000)tl={a,b}}
+  // objetivo e invalidación según el sesgo
+  let tgt=null,inv=null;
+  if(bias==="U"){tgt=sup?{p:sup.lo,z:sup}:null;inv=dem?{p:dem.lo}:null}
+  else if(bias==="D"){tgt=dem?{p:dem.hi,z:dem}:null;inv=sup?{p:sup.hi}:null}
+  const rs=state.candles["5m"]||[],last12=rs.slice(-13,-1);
+  const rangeH=last12.length?Math.max(...last12.map(c=>c.h)):null,rangeL=last12.length?Math.min(...last12.map(c=>c.l)):null;
+  return{px,atr5,bias,up,dn,n,sup,dem,tl,tgt,inv,rangeH,rangeL,open:state.open5m,vwap:a5.vwap,imb:state.imbalance}}
+function aiInit(){
+  const wrap=$("tvChart")&&$("tvChart").parentNode;if(!wrap||AI.layer||!tvChart)return;
+  const L=document.createElement("div");L.className="ai-layer";
+  const mk=(k,cls,inner)=>{const e=document.createElement("div");e.className="ai-e "+cls;if(inner)e.innerHTML=inner;L.appendChild(e);AI.E[k]=e};
+  mk("band","ai-band");mk("open","ai-o");mk("openT","","<span class='ai-tag' style='color:#d7dce6'></span>");
+  mk("sup","ai-z sup","<b></b>");mk("dem","ai-z dem","<b></b>");
+  mk("tl","ai-t");mk("tlT","","<span class='ai-tag' style='color:#7dd3fc'>Tendencia</span>");
+  mk("pj","ai-p");mk("pjT","","<span class='ai-tag' style='color:#facc15'></span>");
+  mk("inv","ai-l");mk("invT","","<span class='ai-tag' style='color:#7dd3fc'></span>");
+  const box=document.createElement("div");box.className="ai-box";L.appendChild(box);AI.box=box;
+  wrap.appendChild(L);AI.layer=L;
+  AI.kick=()=>{if(AI.raf)return;AI.raf=requestAnimationFrame(()=>{AI.raf=0;try{aiDraw()}catch(e){}})};
+  try{tvChart.timeScale().subscribeVisibleLogicalRangeChange(AI.kick)}catch(e){}
+  ["wheel","pointerdown","touchmove"].forEach(ev=>wrap.addEventListener(ev,()=>{AI.kick();setTimeout(AI.kick,120)},{passive:true}));
+  try{new ResizeObserver(AI.kick).observe(wrap)}catch(e){}}
+function aiKick(){if(AI.kick)AI.kick();else if(LAYERS.ai){try{aiInit();if(AI.kick)AI.kick()}catch(e){}}}
+function aiPlace(e,x,y,w,h){const k=Math.round(x)+"|"+Math.round(y)+"|"+Math.round(w)+"|"+Math.round(h);if(e._k===k)return;e._k=k;e.style.transform="translate3d("+Math.round(x)+"px,"+Math.round(y)+"px,0)";if(w!=null)e.style.width=Math.round(w)+"px";if(h!=null)e.style.height=Math.round(h)+"px"}
+function aiLine(e,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy),ang=Math.atan2(dy,dx)*180/Math.PI;const k=[x1,y1,x2,y2].map(Math.round).join("|");if(e._k===k)return;e._k=k;e.style.width=Math.round(len)+"px";e.style.transform="translate3d("+Math.round(x1)+"px,"+Math.round(y1)+"px,0) rotate("+ang.toFixed(2)+"deg)"}
+function aiDraw(){
+  if(!AI.layer||!candleSeries)return;
+  const on=!!LAYERS.ai;AI.layer.classList.toggle("on",on);if(!on)return;
+  const S=AI.sum;Object.values(AI.E).forEach(e=>e.classList.remove("on"));if(!S)return;
+  const H=AI.layer.clientHeight,pw=(()=>{try{return tvChart.priceScale("right").width()}catch(e){return 60}})(),W=Math.max(0,AI.layer.clientWidth-pw);
+  const Y=p=>{const y=candleSeries.priceToCoordinate(p);return(y==null||!Number.isFinite(y))?null:y};
+  const show=k=>AI.E[k].classList.add("on");
+  // banda de rango esperado + apertura
+  const yo=Number.isFinite(S.open)?Y(S.open):null;
+  if(yo!=null&&yo>=0&&yo<=H){const y1=Y(S.open+S.atr5*0.8),y2=Y(S.open-S.atr5*0.8);
+    if(y1!=null&&y2!=null){aiPlace(AI.E.band,0,Math.min(y1,y2),W,Math.abs(y2-y1));show("band")}
+    aiPlace(AI.E.open,0,yo,W,0);show("open");const t=AI.E.openT.firstChild;const tx="Apertura 5M · banda = rango típico de la vela";if(t.textContent!==tx)t.textContent=tx;aiPlace(AI.E.openT,6,yo-16);show("openT")}
+  const zone=(k,z,name)=>{if(!z)return;const y1=Y(z.hi),y2=Y(z.lo);if(y1==null||y2==null||y2<0||y1>H)return;
+    aiPlace(AI.E[k],0,y1,W,Math.max(6,y2-y1));const b=AI.E[k].firstChild,tx=name+" "+Math.round(z.mid).toLocaleString("en-US")+(z.n>1?" · "+z.n+" toques":"");if(b.textContent!==tx)b.textContent=tx;show(k)};
+  zone("sup",S.sup,"OFERTA (zona de venta)");zone("dem",S.dem,"DEMANDA (zona de compra)");
+  const ts=tvChart.timeScale(),X=t=>{try{const x=ts.timeToCoordinate(Math.floor(t/1000));return(x==null||!Number.isFinite(x))?null:x}catch(e){return null}};
+  // línea de tendencia
+  if(S.tl){const xa=X(S.tl.a.t),xb=X(S.tl.b.t),ya=Y(S.tl.a.p),yb=Y(S.tl.b.p);
+    if(xa!=null&&xb!=null&&ya!=null&&yb!=null&&xb>xa){const m=(yb-ya)/(xb-xa),x2=W-6,y2=yb+m*(x2-xb);
+      aiLine(AI.E.tl,xa,ya,x2,y2);show("tl");aiPlace(AI.E.tlT,Math.max(6,xb),Math.min(Math.max(10,yb+(S.bias==="U"?10:-24)),H-20));show("tlT")}}
+  // proyección al objetivo
+  const yp=Y(S.px);
+  if(S.tgt&&yp!=null){const yt=Y(S.tgt.p);if(yt!=null&&yt>=0&&yt<=H){const xn=(()=>{const c=state.candles[state.chartTF||"5m"],l=c&&c[c.length-1];const x=l?X(l.t):null;return x==null?W-70:Math.min(x+4,W-60)})();
+    aiLine(AI.E.pj,xn,yp,W-8,yt);show("pj");const t=AI.E.pjT.firstChild,d=S.tgt.p-S.px,tx="Objetivo $"+Math.round(S.tgt.p).toLocaleString("en-US")+" ("+(d>=0?"+":"−")+"$"+Math.abs(Math.round(d))+")";if(t.textContent!==tx)t.textContent=tx;
+    aiPlace(AI.E.pjT,Math.max(6,W-170),Math.min(Math.max(10,(yt+yp)/2-18),H-20));show("pjT")}}
+  // invalidación
+  if(S.inv){const yi=Y(S.inv.p);if(yi!=null&&yi>=0&&yi<=H){aiPlace(AI.E.inv,0,yi,W,0);show("inv");const t=AI.E.invT.firstChild,tx="Invalida si pierde $"+Math.round(S.inv.p).toLocaleString("en-US");if(t.textContent!==tx)t.textContent=tx;aiPlace(AI.E.invT,6,yi+(S.bias==="U"?3:-17));show("invT")}}
+  // caja de lectura
+  const fm=v=>"$"+Math.round(v).toLocaleString("en-US"),u=S.bias==="U",d=S.bias==="D";
+  const parts=[];
+  parts.push(`<b class="${u?"u":d?"d":"m"}">${u?"Sesgo ALCISTA":d?"Sesgo BAJISTA":"Mercado MIXTO"}</b> · ${S.up} alcistas / ${S.dn} bajistas de ${S.n} marcos`);
+  if(Number.isFinite(S.vwap))parts.push("Precio "+(S.px>S.vwap?"sobre":"bajo")+" VWAP");
+  if(Math.abs(S.imb)>0.06)parts.push("Libro "+(S.imb>0?"con más compra":"con más venta"));
+  if(S.bias==="M"&&S.rangeH!=null)parts.push("Rango reciente "+fm(S.rangeL)+" – "+fm(S.rangeH)+": suele rebotar entre los extremos");
+  else if(S.tgt)parts.push("Objetivo probable "+fm(S.tgt.p)+(S.inv?" · invalida si pierde "+fm(S.inv.p):""));
+  const html=parts.join("<br>")+"<small>Lectura automática orientativa; no es una predicción.</small>";
+  if(AI.boxKey!==html){AI.boxKey=html;AI.box.innerHTML=html}
+}
+setInterval(()=>{try{
+  if(!LAYERS.ai){if(AI.layer&&AI.layer.classList.contains("on"))AI.layer.classList.remove("on");return}
+  if(document.visibilityState!=="visible")return;
+  aiInit();AI.sum=aiCompute();aiKick()}catch(e){}},1000);
 
 // ===== v8.15 HORARIO Y SESIÓN (historial embebido, por hora UTC) =====
 const HR_DATA=[[68, 55], [76, 66], [68, 57], [57, 53], [57, 42], [21, 14], [11, 9], [6, 5], [0, 0], [0, 0], [0, 0], [8, 8], [42, 35], [84, 65], [100, 84], [96, 85], [92, 74], [73, 52], [55, 38], [56, 44], [74, 61], [98, 83], [84, 61], [69, 53]],HR_TOT=1295,HR_HITS=1044,HR_SRC="9–20 nov 2026";
