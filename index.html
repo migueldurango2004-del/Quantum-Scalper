@@ -3064,6 +3064,20 @@ function captureFactors(d){
         if(dir!=="Doji"&&Math.abs(cur)>=FLAT_USD)f["Vela actual vs previa"]=((cur>0)===(dir==="Verde"))?"Misma dirección":"Contraria";
         if(dir!=="Doji")f["Señal vs vela previa"]=((d.side==="LONG")===(dir==="Verde"))?"Con la vela previa":"Contra la vela previa"}}
   }catch(e){}
+  try{ // v8.22: datos nuevos SOLO para validar despues (no cambian ninguna senal)
+    const op=state.open5m,px=state.price,an5=state.analysis["5m"],m1all=state.candles["1m"]||[],now=Date.now()+state.offset,st=now-(now%300000);
+    const cur=m1all.filter(c=>c.t>=st);
+    if(Number.isFinite(op)&&cur.length){
+      f["Toques de apertura en la vela"]=cur.filter(c=>c.l<=op&&c.h>=op).length;      // cuantas velas de 1m ya cruzaron la apertura
+      const ext=Math.max(...cur.map(c=>c.h))-Math.min(...cur.map(c=>c.l));f["Rango vela actual $"]=ext.toFixed(1);
+      if(an5&&an5.atr>0)f["Rango vela actual vs ATR"]=(ext/an5.atr).toFixed(2)}
+    const prev1=m1all.length>=2?m1all[m1all.length-2]:null;
+    if(prev1&&Number.isFinite(px)&&Number.isFinite(op)){const v=px-prev1.c;f["Velocidad 1m $"]=v.toFixed(1);f["Velocidad hacia apertura"]=((px-op>0)===(v<0))?"Se acerca":"Se aleja"}
+    const vv=m1all.slice(-21,-1).map(c=>c.v).filter(Number.isFinite);const lv=m1all.length?m1all[m1all.length-1].v:NaN;
+    if(vv.length>=10&&Number.isFinite(lv)){const mean=vv.reduce((a,b)=>a+b,0)/vv.length;if(mean>0)f["Volumen 1m vs media"]=(lv/mean).toFixed(2)}
+    if(an5&&Number.isFinite(an5.rsi))f["RSI 5m"]=Math.round(an5.rsi);
+    if(an5&&Number.isFinite(an5.vwap)&&Number.isFinite(px))f["Distancia a VWAP $"]=(px-an5.vwap).toFixed(1);
+  }catch(e){}
   f["Confianza"]=d.confidence;
   f["Régimen"]=d.regime?(d.regime.id==="SWEET_SPOT"?"Sweet Spot":d.regime.name):"—";
   f["Sesión"]=sessionInfo().session.split(" (")[0];
@@ -5097,7 +5111,7 @@ setInterval(()=>{try{
   aiInit();AI.sum=aiCompute();aiKick()}catch(e){}},1000);
 
 // ===== v8.15 HORARIO Y SESIÓN (historial embebido, por hora UTC) =====
-const HR_DATA=[[68, 55], [76, 66], [68, 57], [57, 53], [57, 42], [21, 14], [11, 9], [6, 5], [0, 0], [0, 0], [0, 0], [8, 8], [42, 35], [84, 65], [100, 84], [96, 85], [92, 74], [73, 52], [55, 38], [56, 44], [74, 61], [98, 83], [84, 61], [69, 53]],HR_TOT=1295,HR_HITS=1044,HR_SRC="9–20 nov 2026";
+const HR_DATA=[[117, 96], [132, 109], [113, 95], [100, 88], [93, 69], [30, 21], [15, 11], [10, 7], [0, 0], [0, 0], [0, 0], [9, 9], [59, 48], [116, 90], [142, 117], [134, 119], [126, 100], [107, 80], [88, 65], [96, 73], [121, 102], [152, 128], [139, 103], [126, 92]],HR_TOT=2025,HR_HITS=1622,HR_SRC="9–23 nov 2026";
 function hrClass(h){const [n,k]=HR_DATA[h],g=HR_HITS/HR_TOT,sm=(k+20*g)/(n+20);
   if(n<25)return{c:"na",t:"Pocos datos",e:"❔",r:n?Math.round(k/n*100):null,n};
   if(sm>=g+0.03)return{c:"good",t:"Suele ir bien",e:"✅",r:Math.round(k/n*100),n};
