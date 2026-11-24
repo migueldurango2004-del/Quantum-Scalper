@@ -4059,6 +4059,21 @@ const autoRange=a=>{ // hasta dónde bajó y subió la vela de la señal respect
   return{hi,lo,src}};
 const autoCierre=a=>{if(a.closePx==null||a.open==null)return null;const d=a.closePx-a.open;if(Math.abs(d)<FLAT_USD)return{c:"Plana",fav:null};const green=d>0;return{c:green?"Verde":"Roja",fav:(a.side==="LONG")===green}};
 function autoRec(a,px){return (a.side==="LONG"?px-a.entry:a.entry-px)/a.depth}   // 1 = volvió a la apertura
+// v8.23 · MEJOR ENTRADA (solo informativa + registro en bitácora; no cambia ni bloquea señales).
+// La señal sale como siempre. Si despues el precio se va >= BE_STEP$ mas en contra que la entrada (y >= BE_MIN$ de la apertura),
+// se anota ese precio como "mejor entrada"; si ademas hay confirmacion de agotamiento (entryQuality), queda "confirmada".
+const BE_STEP=6,BE_MIN=10;
+function beTrack(a,px,now,isL){
+  if(a.tf!=="5m"||!(a.atr>0)||!Number.isFinite(px)||a.bc)return;
+  const dep=isL?a.open-px:px-a.open,mas=isL?a.entry-px:px-a.entry;
+  if(dep<BE_MIN||mas<BE_STEP)return;
+  const rem=Math.max(0,(a.end-now)/1000);if(rem<20)return;
+  if(!a.be)a.be={p:+px.toFixed(2),m:+mas.toFixed(1),dep:+dep.toFixed(1),t:now};
+  const q=entryQuality(a.side,px-a.open,(px-a.open)/a.atr,rem,null);if(!q)return;
+  a.be.sc=q.score;a.be.need=q.need;
+  if(q.exhOk){a.bc={p:+px.toFixed(2),m:+mas.toFixed(1),dep:+dep.toFixed(1),t:now,sc:q.score,need:q.need};
+    if(!a.beNote){a.beNote=1;try{qsToastA(a,"🎯 Mejor entrada "+a.side+" ≈ $"+fmt(px,0)+" ($"+fmt(mas,0)+" mejor que la señal)","#38bdf8")}catch(e){}}}
+}
 function autoTick(){
   let changed=autoIngest();
   const now=Date.now()+state.offset,px=state.price;
@@ -4069,6 +4084,7 @@ function autoTick(){
       a.lastSeen=now;
       if(isL?px>a.best:px<a.best)a.best=px;
       if(isL?px<a.worst:px>a.worst)a.worst=px;
+      try{beTrack(a,px,now,isL)}catch(e){}
       if(isL?px>a.open:px<a.open){a.status="win";a.kind="full";a.doneT=now;a.reason="El precio cruzó la apertura a favor.";changed=true;qsToastA(a,"✅ Señal "+a.side+" se dio","#0ecb81");try{cobraAlert(a)}catch(e){}return}
     }
     if(now>=a.end+4000){
@@ -4140,8 +4156,8 @@ function exportAutoCSV(){
   const keys=[];res.forEach(a=>a.factors&&Object.keys(a.factors).forEach(k=>{if(!keys.includes(k))keys.push(k)}));
   const esc=v=>{v=v===undefined||v===null?"":String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
   const ex=keys.filter(k=>!["Lado","Confianza","Temporalidad"].includes(k));
-  const head=["fecha","temporalidad","lado","confianza","score","entrada","apertura","profundidad","recuperacion_max_pct","cierre","cierre_vela","cierre_a_favor","vela_min_vs_apertura","vela_max_vs_apertura","peor_contra_entrada","resultado",...ex];
-  const rows=res.map(a=>[new Date(a.emitTime).toISOString(),a.tf,a.side,a.confidence,a.score,a.entry,a.open,a.depth.toFixed(2),Math.round(Math.max(0,autoRec(a,a.best))*100),a.closePx||"",(autoCierre(a)||{}).c||"",(()=>{const q=autoCierre(a);return q&&q.fav!==null?(q.fav?"Sí":"No"):""})(),...(()=>{const g=autoRange(a);return g&&g.src==="vela"?[(g.lo-a.open).toFixed(2),(g.hi-a.open).toFixed(2)]:["",""]})(),(Number.isFinite(a.worst)?Math.max(0,a.side==="LONG"?a.entry-a.worst:a.worst-a.entry).toFixed(2):""),a.status==="win"?(a.kind==="full"?"SE_DIO":"PARCIAL"):a.status==="loss"?"FALLO":"SIN_DATOS",...ex.map(k=>a.factors?a.factors[k]:"")].map(esc).join(","));
+  const head=["fecha","temporalidad","lado","confianza","score","entrada","apertura","profundidad","recuperacion_max_pct","cierre","cierre_vela","cierre_a_favor","vela_min_vs_apertura","vela_max_vs_apertura","peor_contra_entrada","mejor_entrada_precio","mejor_entrada_mas_$","mejor_entrada_confirmada","mejor_entrada_checks","resultado",...ex];
+  const rows=res.map(a=>[new Date(a.emitTime).toISOString(),a.tf,a.side,a.confidence,a.score,a.entry,a.open,a.depth.toFixed(2),Math.round(Math.max(0,autoRec(a,a.best))*100),a.closePx||"",(autoCierre(a)||{}).c||"",(()=>{const q=autoCierre(a);return q&&q.fav!==null?(q.fav?"Sí":"No"):""})(),...(()=>{const g=autoRange(a);return g&&g.src==="vela"?[(g.lo-a.open).toFixed(2),(g.hi-a.open).toFixed(2)]:["",""]})(),(Number.isFinite(a.worst)?Math.max(0,a.side==="LONG"?a.entry-a.worst:a.worst-a.entry).toFixed(2):""),...(()=>{const b=a.bc||a.be;return b?[b.p,b.m,a.bc?"Sí":"No",(b.sc!=null?b.sc+"/"+b.need:"")]:["","","",""]})(),a.status==="win"?(a.kind==="full"?"SE_DIO":"PARCIAL"):a.status==="loss"?"FALLO":"SIN_DATOS",...ex.map(k=>a.factors?a.factors[k]:"")].map(esc).join(","));
   const blob=new Blob(["﻿"+[head.join(","),...rows].join("\n")],{type:"text/csv;charset=utf-8"});
   const l=document.createElement("a");l.href=URL.createObjectURL(blob);l.download="bitacora_automatica.csv";
   document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(l.href),1000);
@@ -4954,6 +4970,9 @@ function cmdRender(){
     if((side==="LONG"||side==="SHORT")&&an&&Number.isFinite(an.atr)&&Number.isFinite(px)){
       const tgt=side==="LONG"?px-0.5*an.atr:px+0.5*an.atr,hit=side==="LONG"?px<=tgt:px>=tgt;
       zt=hit?"🎯 Estás en la zona de mejor entrada":"🎯 Mejor entrada orientativa: $"+fmt(tgt,0)+" ("+(side==="LONG"?"−":"+")+"$"+fmt(0.5*an.atr,0)+")"}
+    try{const nw=Date.now()+state.offset,st=nw-(nw%300000),pa=(state.auto||[]).filter(x=>x.tf==="5m"&&x.status==="pending"&&x.start===st&&x.side===side).pop();
+      if(pa&&pa.bc)zt+=" · ✅ Mejor entrada confirmada ≈ $"+fmt(pa.bc.p,0)+" ($"+fmt(pa.bc.m,0)+" mejor)";
+      else if(pa&&pa.be)zt+=" · 👀 Ya bajó $"+fmt(pa.be.m,0)+" más; esperando confirmación"+(pa.be.sc!=null?" ("+pa.be.sc+"/"+pa.be.need+")":"")}catch(e){}
     if(z&&z.textContent!==zt)z.textContent=zt}catch(e){}
   document.getElementById("cmdBar").style.transform="scaleX("+Math.min(1,(now-start)/300000)+")";
   const p=cmdProb();CMD.lastP=p;
