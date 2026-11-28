@@ -5130,7 +5130,7 @@ setInterval(()=>{try{
   aiInit();AI.sum=aiCompute();aiKick()}catch(e){}},1000);
 
 // ===== v8.15 HORARIO Y SESIÓN (historial embebido, por hora UTC) =====
-const HR_DATA=[[117, 96], [132, 109], [113, 95], [100, 88], [93, 69], [30, 21], [15, 11], [10, 7], [0, 0], [0, 0], [0, 0], [9, 9], [59, 48], [116, 90], [142, 117], [134, 119], [126, 100], [107, 80], [88, 65], [96, 73], [121, 102], [152, 128], [139, 103], [126, 92]],HR_TOT=2025,HR_HITS=1622,HR_SRC="9–23 nov 2026";
+const HR_DATA=[[144, 118], [164, 133], [134, 114], [118, 100], [111, 84], [33, 24], [15, 11], [10, 7], [0, 0], [0, 0], [0, 0], [14, 13], [77, 65], [139, 110], [166, 137], [158, 140], [148, 121], [123, 93], [98, 75], [112, 87], [145, 123], [179, 149], [161, 120], [137, 100]],HR_TOT=2386,HR_HITS=1924,HR_SRC="9–27 nov 2026";
 function hrClass(h){const [n,k]=HR_DATA[h],g=HR_HITS/HR_TOT,sm=(k+20*g)/(n+20);
   if(n<25)return{c:"na",t:"Pocos datos",e:"❔",r:n?Math.round(k/n*100):null,n};
   if(sm>=g+0.03)return{c:"good",t:"Suele ir bien",e:"✅",r:Math.round(k/n*100),n};
